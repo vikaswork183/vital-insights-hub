@@ -9,6 +9,7 @@ import PendingUpdates from '@/components/admin/PendingUpdates';
 import AggregateUpdates from '@/components/admin/AggregateUpdates';
 import ModelManagement from '@/components/admin/ModelManagement';
 import FeatureImportance from '@/components/admin/FeatureImportance';
+import MessagingPanel from '@/components/messaging/MessagingPanel';
 
 export default function Admin() {
   const { user, isAdmin, isLoading, signOut } = useData();
