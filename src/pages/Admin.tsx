@@ -1,11 +1,12 @@
 import { useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useData } from '@/context/DataProvider';
-import { Heart, LogOut, Hospital, ShieldCheck, BarChart3, Settings, FileCheck } from 'lucide-react';
+import { Heart, LogOut, Hospital, ShieldCheck, BarChart3, Settings, FileCheck, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AdminOverview from '@/components/admin/AdminOverview';
 import PendingUpdates from '@/components/admin/PendingUpdates';
+import AggregateUpdates from '@/components/admin/AggregateUpdates';
 import ModelManagement from '@/components/admin/ModelManagement';
 import FeatureImportance from '@/components/admin/FeatureImportance';
 
@@ -70,6 +71,9 @@ export default function Admin() {
             <TabsTrigger value="pending" className="gap-1.5 rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
               <FileCheck className="h-3.5 w-3.5" /> Pending
             </TabsTrigger>
+            <TabsTrigger value="aggregate" className="gap-1.5 rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
+              <Layers className="h-3.5 w-3.5" /> Aggregate
+            </TabsTrigger>
             <TabsTrigger value="models" className="gap-1.5 rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
               <Settings className="h-3.5 w-3.5" /> Models
             </TabsTrigger>
@@ -80,6 +84,7 @@ export default function Admin() {
 
           <TabsContent value="overview" className="animate-fade-in"><AdminOverview /></TabsContent>
           <TabsContent value="pending" className="animate-fade-in"><PendingUpdates /></TabsContent>
+          <TabsContent value="aggregate" className="animate-fade-in"><AggregateUpdates /></TabsContent>
           <TabsContent value="models" className="animate-fade-in"><ModelManagement /></TabsContent>
           <TabsContent value="features" className="animate-fade-in"><FeatureImportance /></TabsContent>
         </Tabs>
