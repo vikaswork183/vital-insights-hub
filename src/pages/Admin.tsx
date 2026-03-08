@@ -91,6 +91,7 @@ export default function Admin() {
           <TabsContent value="aggregate" className="animate-fade-in"><AggregateUpdates /></TabsContent>
           <TabsContent value="models" className="animate-fade-in"><ModelManagement /></TabsContent>
           <TabsContent value="features" className="animate-fade-in"><FeatureImportance /></TabsContent>
+          <TabsContent value="messages" className="animate-fade-in"><MessagingPanel receiverLabel="Hospitals" /></TabsContent>
         </Tabs>
       </main>
     </div>

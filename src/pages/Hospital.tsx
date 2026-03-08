@@ -97,6 +97,7 @@ export default function Hospital() {
           <TabsContent value="diagnostics" className="animate-fade-in"><UpdateRequestsList /></TabsContent>
           <TabsContent value="predict" className="animate-fade-in"><PredictionForm /></TabsContent>
           <TabsContent value="icu-monitor" className="animate-fade-in"><ICUMonitor /></TabsContent>
+          <TabsContent value="messages" className="animate-fade-in"><MessagingPanel receiverLabel="Admin" /></TabsContent>
         </Tabs>
       </main>
     </div>
