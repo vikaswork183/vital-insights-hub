@@ -330,24 +330,24 @@ export default function TrainAndUpload() {
       setCsvInfo({ rowCount: parsed.rowCount, colCount: parsed.colCount, headers: parsed.headers });
       await animateProgress(0, 15, 800);
 
-      // ── Stage 2: Train local model ──
+      // ── Stage 2: Train local model (analyze actual CSV) ──
       setStage('training');
-      const trainedMetrics = simulateTraining(parsed.rowCount, parsed.colCount);
+      const trainedMetrics = analyzeTraining(parsed.headers, parsed.rows);
       await animateProgress(15, 55, 2500);
       setMetrics(trainedMetrics);
 
       // ── Stage 3: Encrypt model delta ──
       setStage('encrypting');
-      const logs = simulateEncryption();
+      const logs = generateEncryptionLogs();
       for (let i = 0; i < logs.length; i++) {
         await new Promise(r => setTimeout(r, 200));
         setEncLogs(prev => [...prev, logs[i]]);
       }
       await animateProgress(55, 75, 1400);
 
-      // ── Stage 4: Validate (aggregation checks) ──
+      // ── Stage 4: Validate (real aggregation checks on CSV data) ──
       setStage('validating');
-      const agg = simulateAggregation();
+      const agg = runAggregationChecks(parsed.headers, parsed.rows);
       await animateProgress(75, 90, 1200);
       setAggResult(agg);
 
