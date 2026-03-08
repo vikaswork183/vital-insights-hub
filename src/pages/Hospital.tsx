@@ -87,6 +87,9 @@ export default function Hospital() {
             <TabsTrigger value="icu-monitor" className="gap-1.5 rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
               <MonitorSpeaker className="h-3.5 w-3.5" /> ICU Monitor
             </TabsTrigger>
+            <TabsTrigger value="messages" className="gap-1.5 rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
+              <MessageSquare className="h-3.5 w-3.5" /> Messages
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="animate-fade-in"><HospitalOverview /></TabsContent>
