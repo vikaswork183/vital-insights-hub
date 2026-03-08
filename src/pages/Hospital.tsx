@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useData } from '@/context/DataProvider';
-import { Heart, LogOut, Shield, Activity, Stethoscope, MonitorSpeaker } from 'lucide-react';
+import { Heart, LogOut, Shield, Activity, Stethoscope, MonitorSpeaker, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import HospitalOverview from '@/components/hospital/HospitalOverview';
@@ -9,6 +9,7 @@ import UpdateRequestsList from '@/components/hospital/UpdateRequestsList';
 import TrainAndUpload from '@/components/hospital/TrainAndUpload';
 import PredictionForm from '@/components/prediction/PredictionForm';
 import ICUMonitor from '@/components/hospital/ICUMonitor';
+import MessagingPanel from '@/components/messaging/MessagingPanel';
 
 export default function Hospital() {
   const { user, profile, isAdmin, isLoading, signOut } = useData();
@@ -86,6 +87,9 @@ export default function Hospital() {
             <TabsTrigger value="icu-monitor" className="gap-1.5 rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
               <MonitorSpeaker className="h-3.5 w-3.5" /> ICU Monitor
             </TabsTrigger>
+            <TabsTrigger value="messages" className="gap-1.5 rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
+              <MessageSquare className="h-3.5 w-3.5" /> Messages
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="animate-fade-in"><HospitalOverview /></TabsContent>
@@ -93,6 +97,7 @@ export default function Hospital() {
           <TabsContent value="diagnostics" className="animate-fade-in"><UpdateRequestsList /></TabsContent>
           <TabsContent value="predict" className="animate-fade-in"><PredictionForm /></TabsContent>
           <TabsContent value="icu-monitor" className="animate-fade-in"><ICUMonitor /></TabsContent>
+          <TabsContent value="messages" className="animate-fade-in"><MessagingPanel receiverLabel="Admin" /></TabsContent>
         </Tabs>
       </main>
     </div>
