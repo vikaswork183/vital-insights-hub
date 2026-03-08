@@ -45,9 +45,37 @@ export default function PredictionForm() {
   );
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<PredictionResult | null>(null);
+  const [bulkInput, setBulkInput] = useState('');
 
   const handleChange = (key: string, val: string) => {
     setValues(prev => ({ ...prev, [key]: parseFloat(val) || 0 }));
+  };
+
+  const handleBulkFill = () => {
+    const parts = bulkInput.split(',').map(s => s.trim());
+    if (parts.length !== FEATURES.length) {
+      toast({
+        title: 'Invalid input',
+        description: `Expected ${FEATURES.length} comma-separated values, got ${parts.length}.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+    const newValues: Record<string, number> = {};
+    for (let i = 0; i < FEATURES.length; i++) {
+      const num = parseFloat(parts[i]);
+      if (isNaN(num)) {
+        toast({
+          title: 'Invalid value',
+          description: `"${parts[i]}" at position ${i + 1} (${FEATURES[i].label}) is not a valid number.`,
+          variant: 'destructive',
+        });
+        return;
+      }
+      newValues[FEATURES[i].key] = num;
+    }
+    setValues(newValues);
+    toast({ title: 'Fields filled', description: 'All 20 feature fields have been populated.' });
   };
 
   const handlePredict = async () => {
