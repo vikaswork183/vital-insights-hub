@@ -14,7 +14,7 @@ export default function Admin() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!isLoading && (!user || !isAdmin)) navigate('/hospital');
+    if (!isLoading && (!user || !isAdmin)) navigate('/admin/login');
   }, [user, isAdmin, isLoading, navigate]);
 
   if (isLoading) return <div className="flex min-h-screen items-center justify-center text-muted-foreground">Loading...</div>;
