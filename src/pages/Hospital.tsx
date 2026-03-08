@@ -8,6 +8,7 @@ import HospitalOverview from '@/components/hospital/HospitalOverview';
 import UpdateRequestsList from '@/components/hospital/UpdateRequestsList';
 import PredictionForm from '@/components/prediction/PredictionForm';
 import DiagnosticsView from '@/components/hospital/DiagnosticsView';
+import ICUMonitor from '@/components/hospital/ICUMonitor';
 
 export default function Hospital() {
   const { user, profile, isAdmin, isLoading, signOut } = useData();
