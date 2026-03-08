@@ -78,7 +78,7 @@ export default function Hospital() {
               Train & Upload
             </TabsTrigger>
             <TabsTrigger value="diagnostics" className="gap-1.5 rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
-              Diagnostics
+              Updates
             </TabsTrigger>
             <TabsTrigger value="predict" className="gap-1.5 rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
               Predict
