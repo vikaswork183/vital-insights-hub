@@ -106,6 +106,9 @@ export default function Login() {
                 {isLogin ? 'Sign Up' : 'Sign In'}
               </button>
             </p>
+            <p className="text-center text-sm text-muted-foreground">
+              <a href="/admin/login" className="text-destructive hover:underline">Admin Login →</a>
+            </p>
           </form>
         </CardContent>
       </Card>

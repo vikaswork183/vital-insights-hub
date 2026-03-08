@@ -68,9 +68,14 @@ export default function Index() {
                 )}
               </>
             ) : (
-              <Link to="/login">
-                <Button size="sm">Sign In</Button>
-              </Link>
+              <>
+                <Link to="/login">
+                  <Button size="sm">Hospital Login</Button>
+                </Link>
+                <Link to="/admin/login">
+                  <Button size="sm" variant="outline">Admin Login</Button>
+                </Link>
+              </>
             )}
           </div>
         </div>
