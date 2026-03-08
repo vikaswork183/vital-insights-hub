@@ -338,7 +338,7 @@ export default function TrainAndUpload() {
 
       // ── Stage 3: Encrypt model delta ──
       setStage('encrypting');
-      const logs = generateEncryptionLogs();
+      const logs = simulateEncryption();
       for (let i = 0; i < logs.length; i++) {
         await new Promise(r => setTimeout(r, 200));
         setEncLogs(prev => [...prev, logs[i]]);
