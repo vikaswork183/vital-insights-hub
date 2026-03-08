@@ -96,11 +96,11 @@ export default function AggregateUpdates() {
 
       if (updateError) throw updateError;
 
-      toast.success(`Model v${newVersion} created from ${selectedIds.size} hospital update${selectedIds.size > 1 ? 's' : ''}`);
       setSelectedIds(new Set());
       setDescription('');
-      refreshModelVersions();
-      refreshUpdateRequests();
+      await refreshUpdateRequests();
+      await refreshModelVersions();
+      toast.success(`Model v${newVersion} created from ${selectedIds.size} hospital update${selectedIds.size > 1 ? 's' : ''}`);
     } catch (error: any) {
       toast.error(error.message || 'Aggregation failed');
     } finally {
