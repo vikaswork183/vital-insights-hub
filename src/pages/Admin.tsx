@@ -1,11 +1,12 @@
 import { useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useData } from '@/context/DataProvider';
-import { Heart, LogOut, Hospital, ShieldCheck, BarChart3, Settings, FileCheck } from 'lucide-react';
+import { Heart, LogOut, Hospital, ShieldCheck, BarChart3, Settings, FileCheck, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AdminOverview from '@/components/admin/AdminOverview';
 import PendingUpdates from '@/components/admin/PendingUpdates';
+import AggregateUpdates from '@/components/admin/AggregateUpdates';
 import ModelManagement from '@/components/admin/ModelManagement';
 import FeatureImportance from '@/components/admin/FeatureImportance';
 
