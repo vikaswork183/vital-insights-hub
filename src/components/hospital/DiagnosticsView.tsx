@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip,
-  ResponsiveContainer, Legend, RadialBarChart, RadialBar
+  ResponsiveContainer, Legend, RadialBarChart, RadialBar, LabelList
 } from 'recharts';
 import { ShieldCheck, ShieldAlert, CheckCircle2, XCircle, AlertTriangle, Activity } from 'lucide-react';
 
