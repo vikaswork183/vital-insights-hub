@@ -81,6 +81,9 @@ export default function Admin() {
             <TabsTrigger value="features" className="gap-1.5 rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
               Features
             </TabsTrigger>
+            <TabsTrigger value="messages" className="gap-1.5 rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
+              <MessageSquare className="h-3.5 w-3.5" /> Messages
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="animate-fade-in"><AdminOverview /></TabsContent>
