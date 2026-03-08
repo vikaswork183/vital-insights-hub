@@ -74,8 +74,8 @@ export default function Hospital() {
             <TabsTrigger value="overview" className="gap-1.5 rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
               <Activity className="h-3.5 w-3.5" /> Overview
             </TabsTrigger>
-            <TabsTrigger value="updates" className="gap-1.5 rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
-              Updates
+            <TabsTrigger value="train-upload" className="gap-1.5 rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
+              Train & Upload
             </TabsTrigger>
             <TabsTrigger value="diagnostics" className="gap-1.5 rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
               Diagnostics
