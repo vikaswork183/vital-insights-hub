@@ -280,7 +280,7 @@ function simulateEncryption(): EncryptionLog[] {
   ];
 }
 
-
+export default function TrainAndUpload() {
   const { user, profile, modelVersions, refreshUpdateRequests } = useData();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
