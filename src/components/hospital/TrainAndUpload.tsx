@@ -276,7 +276,7 @@ export default function TrainAndUpload() {
   const [csvInfo, setCsvInfo] = useState<{ rowCount: number; colCount: number; headers: string[] } | null>(null);
   const [metrics, setMetrics] = useState<TrainingMetrics | null>(null);
   const [encLogs, setEncLogs] = useState<EncryptionLog[]>([]);
-  const [aggResult, setAggResult] = useState<ReturnType<typeof simulateAggregation> | null>(null);
+  const [aggResult, setAggResult] = useState<ReturnType<typeof runAggregationChecks> | null>(null);
   const [showEncLogs, setShowEncLogs] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
