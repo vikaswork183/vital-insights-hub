@@ -9,6 +9,7 @@ import UpdateRequestsList from '@/components/hospital/UpdateRequestsList';
 import TrainAndUpload from '@/components/hospital/TrainAndUpload';
 import PredictionForm from '@/components/prediction/PredictionForm';
 import ICUMonitor from '@/components/hospital/ICUMonitor';
+import MessagingPanel from '@/components/messaging/MessagingPanel';
 
 export default function Hospital() {
   const { user, profile, isAdmin, isLoading, signOut } = useData();
