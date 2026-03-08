@@ -3,6 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useData } from '@/context/DataProvider';
 import { Loader2, AlertTriangle, CheckCircle, ClipboardPaste, RotateCcw, Brain } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -37,8 +38,9 @@ interface PredictionResult {
 }
 
 export default function PredictionForm() {
-  const { selectedModelVersion } = useData();
+  const { selectedModelVersion, setSelectedModelVersion, modelVersions } = useData();
   const { toast } = useToast();
+  const [localModelVersion, setLocalModelVersion] = useState(selectedModelVersion);
   const [values, setValues] = useState<Record<string, number>>(
     Object.fromEntries(FEATURES.map(f => [f.key, f.defaultVal]))
   );
@@ -81,7 +83,7 @@ export default function PredictionForm() {
       const response = await fetch(`http://localhost:8000/predict`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ features: values, model_version: selectedModelVersion }),
+        body: JSON.stringify({ features: values, model_version: localModelVersion }),
       });
       if (!response.ok) throw new Error('Prediction failed');
       const data = await response.json();
@@ -113,12 +115,29 @@ export default function PredictionForm() {
               </div>
               <div>
                 <h3 className="font-heading text-lg font-bold text-foreground">ICU Mortality Prediction</h3>
-                <p className="text-sm text-muted-foreground">Enter patient vitals and lab values to predict mortality risk using model v{selectedModelVersion}</p>
+                <p className="text-sm text-muted-foreground">Enter patient vitals and lab values to predict mortality risk</p>
               </div>
             </div>
-            <Button variant="ghost" size="sm" onClick={handleReset} className="gap-1.5 text-muted-foreground hover:text-foreground">
-              <RotateCcw className="h-3.5 w-3.5" /> Reset
-            </Button>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <Label className="text-xs font-medium text-muted-foreground whitespace-nowrap">Model:</Label>
+                <Select value={localModelVersion} onValueChange={setLocalModelVersion}>
+                  <SelectTrigger className="w-[130px] h-9 text-sm bg-secondary border-border font-mono">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="border-border bg-card">
+                    {modelVersions.map(mv => (
+                      <SelectItem key={mv.id} value={mv.version_number.toString()} className="font-mono text-sm">
+                        v{mv.version_number} {mv.status === 'active' ? '(active)' : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button variant="ghost" size="sm" onClick={handleReset} className="gap-1.5 text-muted-foreground hover:text-foreground">
+                <RotateCcw className="h-3.5 w-3.5" /> Reset
+              </Button>
+            </div>
           </div>
 
           {/* Bulk fill */}
