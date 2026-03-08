@@ -49,11 +49,11 @@ const DEFAULT_IMPORTANCE = [
 
 const getBarColor = (importance: number, max: number) => {
   const ratio = importance / max;
-  if (ratio > 0.8) return 'hsl(170, 50%, 50%)';
-  if (ratio > 0.6) return 'hsl(185, 60%, 50%)';
-  if (ratio > 0.4) return 'hsl(170, 40%, 60%)';
-  if (ratio > 0.2) return 'hsl(185, 40%, 45%)';
-  return 'hsl(210, 15%, 30%)';
+  if (ratio > 0.8) return 'hsl(0, 80%, 50%)';
+  if (ratio > 0.6) return 'hsl(15, 85%, 52%)';
+  if (ratio > 0.4) return 'hsl(28, 90%, 55%)';
+  if (ratio > 0.2) return 'hsl(38, 92%, 50%)';
+  return 'hsl(45, 80%, 40%)';
 };
 
 const CustomBarTooltip = ({ active, payload }: any) => {
