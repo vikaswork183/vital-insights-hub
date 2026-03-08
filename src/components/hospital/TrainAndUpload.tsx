@@ -46,56 +46,224 @@ function parseCSV(text: string) {
   return { headers, rows, rowCount: rows.length, colCount: headers.length };
 }
 
-// Simulate training metrics based on dataset characteristics
-function simulateTraining(rowCount: number, colCount: number): TrainingMetrics {
-  const base = Math.min(0.92, 0.7 + (rowCount / 10000) * 0.15 + (colCount / 50) * 0.05);
-  const noise = () => (Math.random() - 0.5) * 0.04;
+// Clinical valid ranges for aggregation checks
+const CLINICAL_RANGES: Record<string, { min: number; max: number; meanLow: number; meanHigh: number; stdMax: number }> = {
+  age:              { min: 0, max: 120, meanLow: 18, meanHigh: 95, stdMax: 30 },
+  heart_rate:       { min: 30, max: 220, meanLow: 50, meanHigh: 130, stdMax: 40 },
+  systolic_bp:      { min: 50, max: 260, meanLow: 80, meanHigh: 180, stdMax: 50 },
+  diastolic_bp:     { min: 25, max: 180, meanLow: 40, meanHigh: 120, stdMax: 35 },
+  map:              { min: 30, max: 190, meanLow: 55, meanHigh: 140, stdMax: 35 },
+  respiratory_rate: { min: 6, max: 50, meanLow: 10, meanHigh: 35, stdMax: 12 },
+  spo2:             { min: 60, max: 100, meanLow: 85, meanHigh: 100, stdMax: 10 },
+  temperature:      { min: 33, max: 42, meanLow: 35.5, meanHigh: 39.5, stdMax: 2.0 },
+  gcs_total:        { min: 3, max: 15, meanLow: 5, meanHigh: 15, stdMax: 5 },
+  creatinine:       { min: 0, max: 20, meanLow: 0.3, meanHigh: 8, stdMax: 5 },
+  bun:              { min: 0, max: 150, meanLow: 5, meanHigh: 80, stdMax: 40 },
+  glucose:          { min: 20, max: 800, meanLow: 60, meanHigh: 350, stdMax: 150 },
+  wbc:              { min: 0.5, max: 80, meanLow: 3, meanHigh: 30, stdMax: 15 },
+  hemoglobin:       { min: 3, max: 22, meanLow: 6, meanHigh: 18, stdMax: 4 },
+  platelets:        { min: 5, max: 800, meanLow: 50, meanHigh: 450, stdMax: 200 },
+  lactate:          { min: 0, max: 25, meanLow: 0.5, meanHigh: 10, stdMax: 6 },
+};
+
+function computeColumnStats(values: number[]) {
+  const n = values.length;
+  if (n === 0) return { min: 0, max: 0, mean: 0, std: 0 };
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const mean = values.reduce((a, b) => a + b, 0) / n;
+  const std = Math.sqrt(values.reduce((s, v) => s + (v - mean) ** 2, 0) / n);
+  return { min, max, mean, std };
+}
+
+// Analyze the actual CSV data for training metrics
+function analyzeTraining(headers: string[], rows: string[][]): TrainingMetrics {
+  const mortalityIdx = headers.indexOf('mortality');
+  const numRows = rows.length;
+  const numFeatures = headers.filter(h => h !== 'mortality').length;
+
+  if (mortalityIdx === -1) {
+    // No mortality column — generic metrics
+    const base = Math.min(0.88, 0.65 + (numRows / 15000) * 0.15);
+    return {
+      accuracy: base, precision: base - 0.03, recall: base - 0.02,
+      f1: base - 0.025, auc: base + 0.02, loss: 0.5 - base * 0.4,
+      epochs: 25, samples: numRows, features: numFeatures,
+    };
+  }
+
+  const labels = rows.map(r => parseFloat(r[mortalityIdx])).filter(v => !isNaN(v));
+  const mortalityRate = labels.reduce((a, b) => a + b, 0) / labels.length;
+
+  // Malicious datasets with flipped labels / extreme mortality produce worse models
+  const labelQuality = (mortalityRate >= 0.08 && mortalityRate <= 0.60) ? 1.0 : 0.5;
+  
+  // Check for outliers in features
+  let outlierPenalty = 0;
+  for (const [col, ranges] of Object.entries(CLINICAL_RANGES)) {
+    const idx = headers.indexOf(col);
+    if (idx === -1) continue;
+    const vals = rows.map(r => parseFloat(r[idx])).filter(v => !isNaN(v));
+    if (vals.length === 0) continue;
+    const stats = computeColumnStats(vals);
+    if (stats.max > ranges.max * 1.1 || stats.min < ranges.min * 0.9) outlierPenalty += 0.02;
+    if (stats.mean < ranges.meanLow || stats.mean > ranges.meanHigh) outlierPenalty += 0.01;
+    if (stats.std > ranges.stdMax * 1.5) outlierPenalty += 0.015;
+  }
+
+  const base = Math.min(0.92, 0.7 + (numRows / 15000) * 0.12) * labelQuality - Math.min(0.2, outlierPenalty);
+  const noise = () => (Math.random() - 0.5) * 0.02;
+
   return {
-    accuracy: Math.min(0.99, base + noise()),
-    precision: Math.min(0.99, base - 0.02 + noise()),
-    recall: Math.min(0.99, base - 0.01 + noise()),
-    f1: Math.min(0.99, base - 0.015 + noise()),
-    auc: Math.min(0.99, base + 0.03 + noise()),
-    loss: Math.max(0.01, 0.5 - base * 0.4 + noise() * 0.1),
+    accuracy: Math.max(0.35, Math.min(0.99, base + noise())),
+    precision: Math.max(0.30, Math.min(0.99, base - 0.02 + noise())),
+    recall: Math.max(0.30, Math.min(0.99, base - 0.01 + noise())),
+    f1: Math.max(0.30, Math.min(0.99, base - 0.015 + noise())),
+    auc: Math.max(0.35, Math.min(0.99, base + 0.03 + noise())),
+    loss: Math.max(0.05, 0.6 - base * 0.4 + noise() * 0.1),
     epochs: 25,
-    samples: rowCount,
-    features: colCount - 1,
+    samples: numRows,
+    features: numFeatures,
   };
 }
 
-// Simulate encryption logs
-function simulateEncryption(): EncryptionLog[] {
-  const now = new Date();
-  const ts = (offsetMs: number) => new Date(now.getTime() + offsetMs).toISOString().slice(11, 23);
-  return [
-    { timestamp: ts(0), action: 'KEY_GENERATION', detail: 'Generated Paillier keypair (2048-bit)', status: 'ok' },
-    { timestamp: ts(120), action: 'DELTA_COMPUTATION', detail: 'Computed model delta (Δw) against global weights v3', status: 'info' },
-    { timestamp: ts(340), action: 'ENCRYPT_WEIGHTS', detail: `Encrypted ${(Math.random() * 50 + 20).toFixed(0)} weight tensors using homomorphic encryption`, status: 'ok' },
-    { timestamp: ts(580), action: 'FINGERPRINT', detail: `Key fingerprint: SHA256:${Array.from({ length: 8 }, () => Math.floor(Math.random() * 256).toString(16).padStart(2, '0')).join(':')}`, status: 'ok' },
-    { timestamp: ts(650), action: 'INTEGRITY_HASH', detail: `HMAC-SHA256 digest computed for encrypted payload`, status: 'ok' },
-    { timestamp: ts(720), action: 'SERIALIZE', detail: 'Serialized encrypted delta to protobuf format (2.3 MB)', status: 'info' },
-    { timestamp: ts(800), action: 'UPLOAD_READY', detail: 'Encrypted payload ready for secure transmission', status: 'ok' },
+// Run actual aggregation checks on CSV data
+function runAggregationChecks(
+  headers: string[],
+  rows: string[][]
+): { checks: AggregationCheck[]; trustScore: number; l2Norm: number; outlierPct: number; flaggedFeatures: string[] } {
+  const mortalityIdx = headers.indexOf('mortality');
+  const numRows = rows.length;
+  const flaggedFeatures: string[] = [];
+
+  // 1. Simulated L2 norm — larger deltas for more anomalous data
+  let normPenalty = 0;
+
+  // 2. Clinical outlier analysis
+  let totalChecks = 0;
+  let outlierChecks = 0;
+
+  for (const [col, ranges] of Object.entries(CLINICAL_RANGES)) {
+    const idx = headers.indexOf(col);
+    if (idx === -1) continue;
+    const vals = rows.map(r => parseFloat(r[idx])).filter(v => !isNaN(v));
+    if (vals.length === 0) continue;
+    const stats = computeColumnStats(vals);
+
+    // Range check (tight 10% tolerance)
+    totalChecks++;
+    if (stats.min < ranges.min * 0.9 || stats.max > ranges.max * 1.1) {
+      outlierChecks++;
+      flaggedFeatures.push(`${col}: range [${stats.min.toFixed(1)}, ${stats.max.toFixed(1)}] outside valid [${ranges.min}, ${ranges.max}]`);
+      normPenalty += 0.15;
+    }
+
+    // Mean check
+    totalChecks++;
+    if (stats.mean < ranges.meanLow || stats.mean > ranges.meanHigh) {
+      outlierChecks++;
+      flaggedFeatures.push(`${col}: mean ${stats.mean.toFixed(2)} outside [${ranges.meanLow}, ${ranges.meanHigh}]`);
+      normPenalty += 0.1;
+    }
+
+    // Std check
+    totalChecks++;
+    if (stats.std > ranges.stdMax * 1.5) {
+      outlierChecks++;
+      flaggedFeatures.push(`${col}: std ${stats.std.toFixed(2)} exceeds max ${(ranges.stdMax * 1.5).toFixed(1)}`);
+      normPenalty += 0.1;
+    }
+
+    // Constant data check
+    if (stats.std < 0.01 && ranges.stdMax > 1) {
+      totalChecks++;
+      outlierChecks++;
+      flaggedFeatures.push(`${col}: suspiciously constant (std=${stats.std.toFixed(4)})`);
+    }
+  }
+
+  const outlierPct = totalChecks > 0 ? outlierChecks / totalChecks : 0;
+  const outlierPass = outlierPct <= 0.10;
+
+  // 3. Label distribution check
+  let mortalityRate = 0.15; // default
+  let labelPass = true;
+  let labelMsg = '';
+  if (mortalityIdx !== -1) {
+    const labels = rows.map(r => parseFloat(r[mortalityIdx])).filter(v => !isNaN(v));
+    mortalityRate = labels.reduce((a, b) => a + b, 0) / labels.length;
+    if (mortalityRate < 0.08) {
+      labelPass = false;
+      labelMsg = `Mortality rate too low: ${(mortalityRate * 100).toFixed(1)}% (min 8%)`;
+    } else if (mortalityRate > 0.60) {
+      labelPass = false;
+      labelMsg = `Mortality rate too high: ${(mortalityRate * 100).toFixed(1)}% (max 60%)`;
+    } else {
+      labelMsg = `Mortality rate: ${(mortalityRate * 100).toFixed(1)}%`;
+    }
+  }
+
+  // 4. L2 norm (simulated based on data anomalies)
+  const l2Norm = Math.min(3.0, 0.2 + normPenalty + (Math.random() * 0.1));
+  const normPass = l2Norm <= 1.0;
+  const wasClipped = l2Norm > 1.0;
+
+  // 5. Key fingerprint (always passes for frontend simulation)
+  const keyMatch = true;
+
+  // 6. Dataset size check
+  const sizePass = numRows >= 50;
+
+  // 7. Trust score computation (mirrors backend logic)
+  // Norm score: 25 pts
+  let normScore: number;
+  if (wasClipped) {
+    normScore = Math.max(0, 5 * (1 - (l2Norm - 1.0) / 2.0));
+  } else if (l2Norm <= 0.3) {
+    normScore = 25;
+  } else if (l2Norm <= 0.7) {
+    normScore = 25 * (1 - (l2Norm - 0.3) / 0.8);
+  } else {
+    normScore = Math.max(5, 25 * (1 - (l2Norm - 0.3) / 0.7) * 0.5);
+  }
+
+  // Key score: 20 pts
+  const keyScore = keyMatch ? 20 : 0;
+
+  // Outlier score: 25 pts
+  let outlierScore: number;
+  if (outlierPct <= 0.05) {
+    outlierScore = 25;
+  } else if (outlierPct <= 0.10) {
+    outlierScore = 25 * (1 - (outlierPct - 0.05) / 0.10);
+  } else if (outlierPct <= 0.20) {
+    outlierScore = Math.max(0, 12 * (1 - (outlierPct - 0.10) / 0.10));
+  } else {
+    outlierScore = 0;
+  }
+
+  // Label score: 15 pts
+  const labelScore = labelPass ? 15 : 0;
+
+  // Size score: 15 pts
+  let sizeScore: number;
+  if (numRows < 50) sizeScore = 0;
+  else if (numRows < 100) sizeScore = 5;
+  else if (numRows < 500) sizeScore = 5 + 10 * (numRows - 100) / 400;
+  else sizeScore = 15;
+
+  const trustScore = Math.round(normScore + keyScore + outlierScore + labelScore + sizeScore);
+
+  const checks: AggregationCheck[] = [
+    { label: 'L2 Norm Clipping', threshold: '≤ 1.0', value: l2Norm.toFixed(4), pass: normPass },
+    { label: 'Key Fingerprint', threshold: 'Match', value: keyMatch ? 'Verified ✓' : 'MISMATCH', pass: keyMatch },
+    { label: 'Clinical Outliers', threshold: '≤ 10%', value: `${(outlierPct * 100).toFixed(1)}%`, pass: outlierPass },
+    { label: 'Trust Score', threshold: '≥ 70', value: trustScore.toString(), pass: trustScore >= 70 },
+    { label: 'Label Distribution', threshold: '8-60%', value: `${(mortalityRate * 100).toFixed(1)}%`, pass: labelPass },
+    { label: 'Dataset Size', threshold: '≥ 50', value: numRows.toString(), pass: sizePass },
   ];
-}
 
-// Simulate aggregation checks
-function simulateAggregation(): { checks: AggregationCheck[]; trustScore: number; l2Norm: number; outlierPct: number } {
-  const l2Norm = Math.random() * 0.8 + 0.1;
-  const outlierPct = Math.random() * 0.08;
-  const trustScore = Math.floor(70 + Math.random() * 25);
-  return {
-    l2Norm,
-    outlierPct,
-    trustScore,
-    checks: [
-      { label: 'L2 Norm Clipping', threshold: '≤ 1.0', value: l2Norm.toFixed(4), pass: l2Norm <= 1.0 },
-      { label: 'Key Fingerprint', threshold: 'Match', value: 'Verified ✓', pass: true },
-      { label: 'Clinical Outliers', threshold: '≤ 10%', value: `${(outlierPct * 100).toFixed(1)}%`, pass: outlierPct <= 0.1 },
-      { label: 'Trust Score', threshold: '≥ 70', value: trustScore.toString(), pass: trustScore >= 70 },
-      { label: 'Label Balance', threshold: 'Skew ≤ 0.3', value: (Math.random() * 0.2 + 0.05).toFixed(2), pass: true },
-      { label: 'Gradient Norm', threshold: '< 5.0', value: (Math.random() * 3 + 0.5).toFixed(2), pass: true },
-    ],
-  };
+  return { checks, trustScore, l2Norm, outlierPct, flaggedFeatures };
 }
 
 export default function TrainAndUpload() {
