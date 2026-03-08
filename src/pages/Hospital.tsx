@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import HospitalOverview from '@/components/hospital/HospitalOverview';
 import UpdateRequestsList from '@/components/hospital/UpdateRequestsList';
+import TrainAndUpload from '@/components/hospital/TrainAndUpload';
 import PredictionForm from '@/components/prediction/PredictionForm';
-import DiagnosticsView from '@/components/hospital/DiagnosticsView';
 import ICUMonitor from '@/components/hospital/ICUMonitor';
 
 export default function Hospital() {
