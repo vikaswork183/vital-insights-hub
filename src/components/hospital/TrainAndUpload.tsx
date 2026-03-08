@@ -378,18 +378,20 @@ export default function TrainAndUpload() {
         l2_norm: agg.l2Norm,
         clinical_outlier_pct: agg.outlierPct,
         key_fingerprint_match: true,
-        label_distribution: { 'Survived': 0.65, 'Mortality': 0.35 },
+        label_distribution: agg.checks.find(c => c.label === 'Label Distribution')
+          ? { mortality_rate: parseFloat(agg.checks.find(c => c.label === 'Label Distribution')!.value) / 100 }
+          : { mortality_rate: 0.15 },
         diagnostics: {
           local_accuracy: trainedMetrics.accuracy,
           local_f1: trainedMetrics.f1,
           local_auc: trainedMetrics.auc,
-          feature_checks: {
-            'Heart Rate': 92, 'Blood Pressure': 88, 'SpO2': 95,
-            'GCS': 90, 'Lab Values': 85, 'Temperature': 93,
-          },
+          flagged_features: agg.flaggedFeatures,
+          aggregation_checks: agg.checks,
         },
         status: agg.trustScore >= 70 ? 'pending' : 'rejected',
-        rejection_reason: agg.trustScore < 70 ? 'Trust score below threshold' : null,
+        rejection_reason: agg.trustScore < 70
+          ? `Trust score ${agg.trustScore}/100 below threshold. Flagged: ${agg.flaggedFeatures.slice(0, 3).join('; ')}`
+          : null,
       });
 
       if (error) throw error;
