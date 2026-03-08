@@ -170,50 +170,53 @@ export default function PredictionForm() {
       </div>
 
       {result && (
-        <div className="rounded-2xl border border-border bg-card shadow-card overflow-hidden animate-scale-in">
-          <div className={`h-1 ${result.mortality_probability > 0.5 ? 'bg-gradient-to-r from-destructive to-warning' : 'bg-gradient-to-r from-success to-primary'}`} />
-          <div className="p-6">
-            <h3 className="font-heading text-lg font-bold text-foreground flex items-center gap-2 mb-6">
-              {result.mortality_probability > 0.5 ? (
-                <AlertTriangle className="h-5 w-5 text-destructive" />
-              ) : (
-                <CheckCircle className="h-5 w-5 text-success" />
-              )}
-              Prediction Result
-            </h3>
-            <div className="grid gap-5 md:grid-cols-3">
-              <div className="rounded-2xl border border-border bg-secondary/30 p-7 text-center">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Mortality Probability</p>
-                <p className="mt-3 font-heading text-5xl font-bold text-foreground">
-                  {(result.mortality_probability * 100).toFixed(1)}%
-                </p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/60 backdrop-blur-sm" onClick={() => setResult(null)}>
+          <div className="w-full max-w-2xl mx-4 rounded-2xl border border-border bg-card shadow-elevated overflow-hidden animate-scale-in" onClick={(e) => e.stopPropagation()}>
+            <div className={`h-1 ${result.mortality_probability > 0.5 ? 'bg-gradient-to-r from-destructive to-warning' : 'bg-gradient-to-r from-success to-primary'}`} />
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="font-heading text-lg font-bold text-foreground flex items-center gap-2">
+                  {result.mortality_probability > 0.5 ? (
+                    <AlertTriangle className="h-5 w-5 text-destructive" />
+                  ) : (
+                    <CheckCircle className="h-5 w-5 text-success" />
+                  )}
+                  Prediction Result
+                </h3>
+                <Button variant="ghost" size="sm" onClick={() => setResult(null)} className="text-muted-foreground hover:text-foreground text-xs">✕ Close</Button>
               </div>
-              <div className="rounded-2xl border border-border bg-secondary/30 p-7 text-center flex flex-col items-center justify-center">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Risk Category</p>
-                <div className={`mt-3 inline-flex items-center gap-2 rounded-full border px-5 py-2 text-lg font-bold ${
-                  result.risk_category === 'High Risk' ? 'border-destructive/20 bg-destructive/10 text-destructive' :
-                  result.risk_category === 'Moderate Risk' ? 'border-warning/20 bg-warning/10 text-warning' : 'border-success/20 bg-success/10 text-success'
-                }`}>
-                  {result.risk_category === 'High Risk' ? <AlertTriangle className="h-4 w-4" /> :
-                   result.risk_category === 'Moderate Risk' ? <AlertTriangle className="h-4 w-4" /> :
-                   <CheckCircle className="h-4 w-4" />}
-                  {result.risk_category}
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="rounded-xl border border-border bg-secondary/30 p-5 text-center">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Mortality Probability</p>
+                  <p className="mt-2 font-heading text-4xl font-bold text-foreground">
+                    {(result.mortality_probability * 100).toFixed(1)}%
+                  </p>
                 </div>
-              </div>
-              <div className="rounded-2xl border border-border bg-secondary/30 p-7">
-                <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Top Feature Contributions</p>
-                <div className="space-y-2.5">
-                  {Object.entries(result.feature_contributions)
-                    .sort(([, a], [, b]) => Math.abs(b) - Math.abs(a))
-                    .slice(0, 5)
-                    .map(([name, value]) => (
-                      <div key={name} className="flex items-center justify-between">
-                        <span className="text-xs text-muted-foreground truncate mr-2">{name}</span>
-                        <span className={`font-mono text-xs font-semibold ${value > 0 ? 'text-destructive' : 'text-success'}`}>
-                          {value > 0 ? '+' : ''}{value.toFixed(3)}
-                        </span>
-                      </div>
-                    ))}
+                <div className="rounded-xl border border-border bg-secondary/30 p-5 text-center flex flex-col items-center justify-center">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Risk Category</p>
+                  <div className={`mt-2 inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-bold ${
+                    result.risk_category === 'High Risk' ? 'border-destructive/20 bg-destructive/10 text-destructive' :
+                    result.risk_category === 'Moderate Risk' ? 'border-warning/20 bg-warning/10 text-warning' : 'border-success/20 bg-success/10 text-success'
+                  }`}>
+                    {result.risk_category === 'Low Risk' ? <CheckCircle className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}
+                    {result.risk_category}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-border bg-secondary/30 p-5">
+                  <p className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Top Contributions</p>
+                  <div className="space-y-2">
+                    {Object.entries(result.feature_contributions)
+                      .sort(([, a], [, b]) => Math.abs(b) - Math.abs(a))
+                      .slice(0, 5)
+                      .map(([name, value]) => (
+                        <div key={name} className="flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground truncate mr-2">{name}</span>
+                          <span className={`font-mono text-xs font-semibold ${value > 0 ? 'text-destructive' : 'text-success'}`}>
+                            {value > 0 ? '+' : ''}{value.toFixed(3)}
+                          </span>
+                        </div>
+                      ))}
+                  </div>
                 </div>
               </div>
             </div>
