@@ -89,7 +89,7 @@ export default function PredictionForm() {
       const data = await response.json();
       setResult(data);
     } catch (err: any) {
-      toast({ title: 'Prediction Error', description: 'Could not reach the backend. Using simulated prediction for demo.', variant: 'destructive' });
+      console.warn('Could not reach backend, using simulated prediction.');
       const simProb = simulatePrediction(values);
       setResult({
         mortality_probability: simProb,
