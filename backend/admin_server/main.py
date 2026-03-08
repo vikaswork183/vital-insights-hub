@@ -1,11 +1,11 @@
 """
-Vital Sync — Main Backend Server (FastAPI, port 8000)
+Vital Sync — Admin/Global Server (FastAPI, port 8000)
 
-Handles:
-- Model versioning
-- Update request handling
+This runs on the PUBLIC GLOBAL SERVER and handles:
+- Model versioning and storage
+- Update request handling from hospitals
 - Robust aggregation pipeline
-- Prediction endpoint
+- Prediction endpoint for clients
 """
 
 import os
@@ -22,7 +22,7 @@ from model import FTTransformer, create_model
 from aggregation import run_aggregation_checks, aggregate_deltas
 from train import FEATURE_COLS, FEATURE_LABELS, evaluate_model, compute_feature_importance
 
-app = FastAPI(title="Vital Sync Backend", version="1.0.0")
+app = FastAPI(title="Vital Sync Admin Server", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -92,7 +92,7 @@ def load_model(version: str):
 
 @app.get("/")
 def root():
-    return {"service": "Vital Sync Backend", "status": "running"}
+    return {"service": "Vital Sync Admin Server", "status": "running", "location": "Global Server"}
 
 
 @app.get("/models")
@@ -265,4 +265,5 @@ def aggregate_updates(req: AggregateRequest):
 
 if __name__ == "__main__":
     import uvicorn
+    print("Starting Admin Server on port 8000...")
     uvicorn.run(app, host="0.0.0.0", port=8000)

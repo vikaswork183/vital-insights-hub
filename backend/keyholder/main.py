@@ -1,11 +1,15 @@
 """
-Keyholder Service — Holds Paillier private key (port 8001).
+Keyholder Service — Paillier Private Key Management (port 8001)
+
+**Deployment: SECURE ISOLATED SERVER**
 
 This service:
 - Generates and holds the Paillier keypair
 - Provides the public key to hospital agents
 - Decrypts ONLY aggregated results (never individual updates)
 - Never sees raw patient data
+
+SECURITY: This should run on an isolated server with strict access controls.
 """
 
 import json
@@ -53,10 +57,11 @@ class DecryptRequest(BaseModel):
 @app.get("/")
 def root():
     return {
-        "service": "Keyholder",
+        "service": "Vital Sync Keyholder",
         "status": "running",
         "paillier_available": HAS_PAILLIER,
         "key_fingerprint": KEY_FINGERPRINT,
+        "location": "Secure Isolated Server",
     }
 
 
@@ -79,6 +84,11 @@ def decrypt_aggregated(req: DecryptRequest):
     
     IMPORTANT: This endpoint should only be called with the aggregated
     sum of encrypted deltas, NEVER with individual hospital updates.
+    
+    The homomorphic property of Paillier ensures that:
+    E(a) * E(b) = E(a + b)
+    
+    So we can sum encrypted values without decrypting them individually.
     """
     if not HAS_PAILLIER:
         raise HTTPException(400, "Paillier not available")
@@ -108,6 +118,18 @@ def get_fingerprint():
     return {"fingerprint": KEY_FINGERPRINT}
 
 
+@app.get("/health")
+def health():
+    """Health check endpoint."""
+    return {
+        "healthy": True,
+        "paillier_ready": HAS_PAILLIER and public_key is not None,
+    }
+
+
 if __name__ == "__main__":
     import uvicorn
+    print("Starting Keyholder Service...")
+    print("WARNING: This service holds sensitive cryptographic keys.")
+    print("Ensure proper access controls are in place.")
     uvicorn.run(app, host="0.0.0.0", port=8001)

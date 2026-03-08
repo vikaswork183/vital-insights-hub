@@ -271,8 +271,8 @@ def compute_feature_importance(model: nn.Module, X: np.ndarray, device) -> list:
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--train', default='data/hospital_1.csv')
-    parser.add_argument('--test', default='data/test_holdout.csv')
+    parser.add_argument('--train', default='../data/hospital_1.csv')
+    parser.add_argument('--test', default='../data/test_holdout.csv')
     parser.add_argument('--epochs', type=int, default=100)
     parser.add_argument('--version', type=int, default=1)
     args = parser.parse_args()

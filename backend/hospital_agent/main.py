@@ -1,12 +1,14 @@
 """
-Hospital Agent — Local training and encrypted update submission (port 8002).
+Hospital Agent — Local Training & Encrypted Update Submission (port 8002)
 
-Each hospital:
-1. Loads local CSV data
-2. Trains the FT-Transformer locally
-3. Computes model delta (last layer params)
-4. Encrypts delta with Paillier homomorphic encryption
-5. Submits encrypted update to the backend
+**Deployment: HOSPITAL LOCAL SERVER**
+
+Each hospital runs this agent locally to:
+1. Load local CSV data (never leaves hospital premises)
+2. Train the FT-Transformer locally
+3. Compute model delta (last layer params only)
+4. Encrypt delta with Paillier homomorphic encryption
+5. Submit encrypted update to global admin server
 """
 
 import os
@@ -42,8 +44,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Configuration
-BACKEND_URL = os.environ.get("BACKEND_URL", "http://localhost:8000")
+# Configuration — These should be set per hospital
+ADMIN_SERVER_URL = os.environ.get("ADMIN_SERVER_URL", "http://localhost:8000")
 KEYHOLDER_URL = os.environ.get("KEYHOLDER_URL", "http://localhost:8001")
 HOSPITAL_NAME = os.environ.get("HOSPITAL_NAME", "Hospital Agent")
 HOSPITAL_ID = os.environ.get("HOSPITAL_ID", "hospital-1")
@@ -52,6 +54,7 @@ HOSPITAL_ID = os.environ.get("HOSPITAL_ID", "hospital-1")
 current_model = None
 initial_params = None
 public_key = None
+last_trained_csv = None
 KEY_FINGERPRINT = "vitalsync-paillier-v1-sha256"
 
 
@@ -126,21 +129,29 @@ def compute_data_stats(csv_path: str) -> Dict:
 
 @app.get("/")
 def root():
-    return {"service": "Hospital Agent", "hospital": HOSPITAL_NAME, "status": "running"}
+    return {
+        "service": "Vital Sync Hospital Agent",
+        "hospital": HOSPITAL_NAME,
+        "hospital_id": HOSPITAL_ID,
+        "status": "running",
+        "location": "Hospital Local Server",
+    }
 
 
 @app.post("/train")
 def train_local(req: TrainRequest):
     """Train the model locally on hospital data."""
-    global current_model, initial_params
+    global current_model, initial_params, last_trained_csv
 
     if not os.path.exists(req.csv_path):
         raise HTTPException(404, f"CSV not found: {req.csv_path}")
 
+    last_trained_csv = req.csv_path
+
     # Save initial params before training (for delta computation)
     model = create_model(n_features=len(FEATURE_COLS))
 
-    # Try to load existing global model
+    # Try to load existing global model from admin server
     model_path = f"models/ft_transformer_v{req.model_version}.pt"
     if os.path.exists(model_path):
         checkpoint = torch.load(model_path, map_location='cpu', weights_only=False)
@@ -149,7 +160,7 @@ def train_local(req: TrainRequest):
 
     initial_params = model.get_last_layer_params()
 
-    # Train
+    # Train locally
     trained_model, scaler, results, importance = train_model(
         train_csv=req.csv_path,
         epochs=req.epochs,
@@ -159,6 +170,7 @@ def train_local(req: TrainRequest):
 
     return {
         "status": "trained",
+        "hospital": HOSPITAL_NAME,
         "metrics": results,
         "feature_importance": importance,
     }
@@ -166,8 +178,8 @@ def train_local(req: TrainRequest):
 
 @app.post("/submit_update")
 def submit_update(req: SubmitRequest):
-    """Compute delta, encrypt, and submit to backend."""
-    global current_model, initial_params
+    """Compute delta, encrypt, and submit to admin server."""
+    global current_model, initial_params, last_trained_csv
 
     if current_model is None or initial_params is None:
         raise HTTPException(400, "No trained model. Train first with /train")
@@ -181,9 +193,8 @@ def submit_update(req: SubmitRequest):
         else:
             delta[key] = trained_params[key].numpy()
 
-    # Get data stats (from last trained CSV)
-    # In a real system, you'd track this. Using default path for now.
-    csv_path = "data/hospital_1.csv"  # This should be tracked per training run
+    # Get data stats from last trained CSV
+    csv_path = last_trained_csv or "data/hospital_data.csv"
     data_stats, label_dist = compute_data_stats(csv_path)
 
     # Encrypt if requested
@@ -191,11 +202,11 @@ def submit_update(req: SubmitRequest):
         if not public_key:
             fetch_public_key()
 
-    # Submit to backend
+    # Submit to admin server
     serialized_delta = {k: v.tolist() for k, v in delta.items()}
 
     try:
-        resp = requests.post(f"{BACKEND_URL}/submit_update", json={
+        resp = requests.post(f"{ADMIN_SERVER_URL}/submit_update", json={
             "hospital_name": HOSPITAL_NAME,
             "hospital_id": HOSPITAL_ID,
             "model_version": req.model_version,
@@ -208,7 +219,7 @@ def submit_update(req: SubmitRequest):
         })
         return resp.json()
     except Exception as e:
-        raise HTTPException(500, f"Failed to submit to backend: {str(e)}")
+        raise HTTPException(500, f"Failed to submit to admin server: {str(e)}")
 
 
 @app.get("/status")
@@ -216,14 +227,34 @@ def status():
     """Get current agent status."""
     return {
         "hospital": HOSPITAL_NAME,
+        "hospital_id": HOSPITAL_ID,
         "model_loaded": current_model is not None,
         "paillier_available": HAS_PAILLIER,
         "public_key_loaded": public_key is not None,
+        "admin_server": ADMIN_SERVER_URL,
+        "keyholder": KEYHOLDER_URL,
     }
+
+
+@app.get("/download_global_model/{version}")
+def download_global_model(version: str):
+    """Download the latest global model from admin server."""
+    try:
+        resp = requests.get(f"{ADMIN_SERVER_URL}/models")
+        models = resp.json().get('models', [])
+        matching = [m for m in models if m['version'] == version]
+        if matching:
+            return {"status": "available", "model": matching[0]}
+        return {"status": "not_found", "version": version}
+    except Exception as e:
+        raise HTTPException(500, f"Failed to contact admin server: {str(e)}")
 
 
 if __name__ == "__main__":
     import uvicorn
+    print(f"Starting Hospital Agent for {HOSPITAL_NAME}...")
+    print(f"Admin Server: {ADMIN_SERVER_URL}")
+    print(f"Keyholder: {KEYHOLDER_URL}")
     # Try to fetch public key on startup
     fetch_public_key()
     uvicorn.run(app, host="0.0.0.0", port=8002)
