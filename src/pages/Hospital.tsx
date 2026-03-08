@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useData } from '@/context/DataProvider';
-import { Heart, LogOut, Shield, Activity, Stethoscope } from 'lucide-react';
+import { Heart, LogOut, Shield, Activity, Stethoscope, MonitorSpeaker } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import HospitalOverview from '@/components/hospital/HospitalOverview';
