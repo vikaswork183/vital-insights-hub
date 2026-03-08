@@ -115,12 +115,29 @@ export default function PredictionForm() {
               </div>
               <div>
                 <h3 className="font-heading text-lg font-bold text-foreground">ICU Mortality Prediction</h3>
-                <p className="text-sm text-muted-foreground">Enter patient vitals and lab values to predict mortality risk using model v{selectedModelVersion}</p>
+                <p className="text-sm text-muted-foreground">Enter patient vitals and lab values to predict mortality risk</p>
               </div>
             </div>
-            <Button variant="ghost" size="sm" onClick={handleReset} className="gap-1.5 text-muted-foreground hover:text-foreground">
-              <RotateCcw className="h-3.5 w-3.5" /> Reset
-            </Button>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <Label className="text-xs font-medium text-muted-foreground whitespace-nowrap">Model:</Label>
+                <Select value={localModelVersion} onValueChange={setLocalModelVersion}>
+                  <SelectTrigger className="w-[130px] h-9 text-sm bg-secondary border-border font-mono">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="border-border bg-card">
+                    {modelVersions.map(mv => (
+                      <SelectItem key={mv.id} value={mv.version_number.toString()} className="font-mono text-sm">
+                        v{mv.version_number} {mv.status === 'active' ? '(active)' : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button variant="ghost" size="sm" onClick={handleReset} className="gap-1.5 text-muted-foreground hover:text-foreground">
+                <RotateCcw className="h-3.5 w-3.5" /> Reset
+              </Button>
+            </div>
           </div>
 
           {/* Bulk fill */}
