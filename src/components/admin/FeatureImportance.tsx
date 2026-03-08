@@ -1,6 +1,7 @@
 import { useData } from '@/context/DataProvider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
+import { Brain, TrendingUp } from 'lucide-react';
 
 const DEFAULT_IMPORTANCE = [
   { feature: 'Lactate', importance: 0.142 },
@@ -25,12 +26,29 @@ const DEFAULT_IMPORTANCE = [
   { feature: 'Gender', importance: 0.005 },
 ];
 
-const getBarColor = (importance: number, max: number) => {
+const getBarGradientColor = (importance: number, max: number) => {
   const ratio = importance / max;
-  if (ratio > 0.7) return 'hsl(210, 100%, 52%)';
-  if (ratio > 0.4) return 'hsl(199, 100%, 52%)';
-  if (ratio > 0.2) return 'hsl(162, 72%, 46%)';
-  return 'hsl(var(--muted-foreground))';
+  if (ratio > 0.8) return '#3b82f6';   // primary blue
+  if (ratio > 0.6) return '#06b6d4';   // cyan
+  if (ratio > 0.4) return '#14b8a6';   // teal
+  if (ratio > 0.2) return '#22c55e';   // green
+  return '#94a3b8';                      // muted
+};
+
+const CustomTooltip = ({ active, payload }: any) => {
+  if (!active || !payload?.length) return null;
+  const data = payload[0].payload;
+  return (
+    <div className="rounded-xl border border-border bg-card px-4 py-3 shadow-elevated">
+      <p className="font-heading text-sm font-semibold text-foreground">{data.feature}</p>
+      <p className="mt-1 font-mono text-xs text-muted-foreground">
+        Importance: <span className="text-primary font-semibold">{data.importance.toFixed(4)}</span>
+      </p>
+      <p className="font-mono text-xs text-muted-foreground">
+        Rank: <span className="text-foreground font-semibold">#{data.rank}</span>
+      </p>
+    </div>
+  );
 };
 
 export default function FeatureImportance() {
@@ -39,54 +57,109 @@ export default function FeatureImportance() {
   const activeModel = modelVersions.find(m => m.version_number.toString() === selectedModelVersion);
   const importance = activeModel?.feature_importance as Array<{ feature: string; importance: number }> | null;
 
-  const data = (importance && importance.length > 0 ? importance : DEFAULT_IMPORTANCE)
-    .sort((a, b) => b.importance - a.importance);
+  const sortedData = (importance && importance.length > 0 ? importance : DEFAULT_IMPORTANCE)
+    .sort((a, b) => b.importance - a.importance)
+    .map((item, index) => ({ ...item, rank: index + 1, pct: 0 }));
 
-  const maxImportance = data[0]?.importance ?? 1;
+  const maxImportance = sortedData[0]?.importance ?? 1;
+  const totalImportance = sortedData.reduce((sum, d) => sum + d.importance, 0);
+  sortedData.forEach(d => { d.pct = (d.importance / totalImportance) * 100; });
+
+  // Top 3 for highlight cards
+  const top3 = sortedData.slice(0, 3);
 
   return (
-    <Card className="shadow-card overflow-hidden">
-      <div className="h-0.5 bg-gradient-to-r from-primary via-primary-glow to-accent" />
-      <CardHeader>
-        <CardTitle className="font-heading">Feature Importance — Model v{selectedModelVersion}</CardTitle>
-        <p className="text-sm text-muted-foreground">Relative contribution of each ICU feature to the mortality prediction</p>
-      </CardHeader>
-      <CardContent>
-        <ResponsiveContainer width="100%" height={560}>
-          <BarChart data={data} layout="vertical" margin={{ left: 120, right: 30, top: 10, bottom: 10 }}>
-            <XAxis
-              type="number"
-              domain={[0, 'auto']}
-              tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
-              axisLine={false}
-              tickLine={false}
-            />
-            <YAxis
-              type="category"
-              dataKey="feature"
-              tick={{ fontSize: 12, fill: 'hsl(var(--foreground))' }}
-              width={110}
-              axisLine={false}
-              tickLine={false}
-            />
-            <Tooltip
-              formatter={(v: number) => v.toFixed(4)}
-              contentStyle={{
-                borderRadius: 12,
-                border: '1px solid hsl(var(--border))',
-                boxShadow: 'var(--shadow-elevated)',
-                background: 'hsl(var(--card))',
-                fontSize: 13,
-              }}
-            />
-            <Bar dataKey="importance" radius={[0, 6, 6, 0]}>
-              {data.map((entry, index) => (
-                <Cell key={index} fill={getBarColor(entry.importance, maxImportance)} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </CardContent>
-    </Card>
+    <div className="space-y-6">
+      {/* Top features highlight */}
+      <div className="grid gap-4 md:grid-cols-3">
+        {top3.map((item, i) => (
+          <Card key={item.feature} className="group relative overflow-hidden shadow-card card-hover">
+            <div className={`h-1 ${i === 0 ? 'bg-gradient-to-r from-primary to-primary-glow' : i === 1 ? 'bg-gradient-to-r from-cyan to-teal' : 'bg-gradient-to-r from-teal to-success'}`} />
+            <CardContent className="pt-6">
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className={`flex h-7 w-7 items-center justify-center rounded-lg font-heading text-xs font-bold ${i === 0 ? 'bg-primary/10 text-primary' : i === 1 ? 'bg-cyan/10 text-cyan' : 'bg-teal/10 text-teal'}`}>
+                      #{i + 1}
+                    </span>
+                    <span className="font-heading text-lg font-bold text-foreground">{item.feature}</span>
+                  </div>
+                  <div className="flex items-baseline gap-3">
+                    <span className="font-mono text-2xl font-bold text-foreground">{item.pct.toFixed(1)}%</span>
+                    <span className="font-mono text-xs text-muted-foreground">importance: {item.importance.toFixed(4)}</span>
+                  </div>
+                </div>
+                <TrendingUp className={`h-5 w-5 ${i === 0 ? 'text-primary' : i === 1 ? 'text-cyan' : 'text-teal'}`} />
+              </div>
+              {/* Mini bar */}
+              <div className="mt-4 h-2 w-full rounded-full bg-muted overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-700 ${i === 0 ? 'bg-gradient-to-r from-primary to-primary-glow' : i === 1 ? 'bg-gradient-to-r from-cyan to-teal' : 'bg-gradient-to-r from-teal to-success'}`}
+                  style={{ width: `${item.pct}%` }}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Full chart */}
+      <Card className="shadow-card overflow-hidden">
+        <div className="h-0.5 bg-gradient-to-r from-primary via-cyan to-accent" />
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+                <Brain className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <CardTitle className="font-heading">Feature Importance</CardTitle>
+                <p className="text-sm text-muted-foreground">Model v{selectedModelVersion} — Relative contribution to mortality prediction</p>
+              </div>
+            </div>
+            <span className="rounded-full bg-muted px-3 py-1 font-mono text-xs text-muted-foreground">{sortedData.length} features</span>
+          </div>
+        </CardHeader>
+        <CardContent className="pb-8">
+          <ResponsiveContainer width="100%" height={620}>
+            <BarChart
+              data={sortedData}
+              layout="vertical"
+              margin={{ left: 10, right: 60, top: 10, bottom: 10 }}
+              barCategoryGap="18%"
+            >
+              <XAxis
+                type="number"
+                domain={[0, 'auto']}
+                tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={(v) => v.toFixed(2)}
+              />
+              <YAxis
+                type="category"
+                dataKey="feature"
+                tick={{ fontSize: 13, fill: 'hsl(var(--foreground))', fontWeight: 500 }}
+                width={120}
+                axisLine={false}
+                tickLine={false}
+              />
+              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--muted) / 0.5)', radius: 8 }} />
+              <Bar dataKey="importance" radius={[0, 8, 8, 0]} animationDuration={1200} animationBegin={100}>
+                {sortedData.map((entry, index) => (
+                  <Cell key={index} fill={getBarGradientColor(entry.importance, maxImportance)} />
+                ))}
+                <LabelList
+                  dataKey="pct"
+                  position="right"
+                  formatter={(v: number) => `${v.toFixed(1)}%`}
+                  style={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))', fontFamily: 'var(--font-mono)' }}
+                />
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

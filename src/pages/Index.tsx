@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Shield, Activity, Brain, Lock, Users, BarChart3, ArrowRight, Heart, Zap, Globe } from 'lucide-react';
+import { Shield, Activity, Brain, Lock, Users, BarChart3, ArrowRight, Heart, Zap, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useData } from '@/context/DataProvider';
 
@@ -7,38 +7,32 @@ const features = [
   {
     icon: Brain,
     title: 'FT-Transformer Model',
-    description: 'State-of-the-art deep tabular architecture with attention-based feature interactions for ICU mortality prediction.',
-    gradient: 'from-primary to-primary-glow',
+    description: 'Attention-based deep tabular architecture that captures complex feature interactions for ICU mortality prediction.',
   },
   {
     icon: Lock,
     title: 'Paillier Encryption',
-    description: 'Homomorphic encryption ensures model updates are encrypted before transmission. Only aggregated results are decrypted.',
-    gradient: 'from-accent to-teal-light',
+    description: 'Homomorphic encryption protects model updates in transit — only aggregated results are ever decrypted.',
   },
   {
     icon: Shield,
     title: 'Robust Aggregation',
-    description: 'Multi-dimensional trust scoring with L2 norm clipping, outlier detection, and malicious update rejection.',
-    gradient: 'from-warning to-destructive',
+    description: 'Trust scoring, L2 norm clipping, outlier detection, and automatic rejection of malicious updates.',
   },
   {
     icon: Users,
     title: 'Federated Learning',
-    description: 'Hospitals collaboratively train a shared model without sharing any raw patient data.',
-    gradient: 'from-primary to-accent',
+    description: 'Hospitals train collaboratively without sharing a single row of patient data.',
   },
   {
     icon: Activity,
     title: 'Real-time Monitoring',
-    description: 'Live dashboards with diagnostic charts, trust gauges, and model performance tracking.',
-    gradient: 'from-teal to-cyan',
+    description: 'Live dashboards with trust gauges, diagnostic charts, and model performance tracking.',
   },
   {
     icon: BarChart3,
     title: 'Clinical Analytics',
-    description: 'Feature importance visualization, confusion matrices, and comprehensive evaluation metrics.',
-    gradient: 'from-cyan to-primary',
+    description: 'Feature importance, confusion matrices, and comprehensive evaluation metrics at a glance.',
   },
 ];
 
@@ -49,26 +43,19 @@ const stats = [
   { label: 'Privacy Level', value: 'Maximum', icon: Shield },
 ];
 
-const archItems = [
-  { title: 'Hospital Agent', desc: 'Local CSV ingestion, FT-Transformer training, delta extraction, Paillier encryption', port: '8002', color: 'bg-primary/10 text-primary' },
-  { title: 'Backend Server', desc: 'Model versioning, update request handling, robust aggregation pipeline', port: '8000', color: 'bg-accent/10 text-accent' },
-  { title: 'Keyholder Service', desc: 'Holds Paillier private key, decrypts only aggregated results', port: '8001', color: 'bg-warning/10 text-warning' },
-  { title: 'Frontend Dashboard', desc: 'React + TypeScript with real-time sync, charts, and prediction UI', port: 'Web', color: 'bg-cyan/10 text-cyan' },
-];
-
 export default function Index() {
   const { user, isAdmin } = useData();
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background overflow-hidden">
       {/* Navbar */}
-      <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border/50 bg-background/70 backdrop-blur-2xl">
+      <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border/40 bg-background/60 backdrop-blur-2xl">
         <div className="container flex h-16 items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-accent">
-              <Heart className="h-4 w-4 text-primary-foreground" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-accent shadow-glow-sm">
+              <Heart className="h-4.5 w-4.5 text-primary-foreground" />
             </div>
-            <span className="font-heading text-lg font-bold tracking-tight text-foreground">Vital Sync</span>
+            <span className="font-heading text-xl font-bold tracking-tight text-foreground">Vital Sync</span>
           </div>
           <div className="flex items-center gap-3">
             {user ? (
@@ -85,7 +72,7 @@ export default function Index() {
             ) : (
               <>
                 <Link to="/login">
-                  <Button size="sm">Hospital Login</Button>
+                  <Button size="sm" className="bg-gradient-to-r from-primary to-primary-glow shadow-glow-sm">Hospital Login</Button>
                 </Link>
                 <Link to="/admin/login">
                   <Button size="sm" variant="outline">Admin Login</Button>
@@ -97,36 +84,44 @@ export default function Index() {
       </nav>
 
       {/* Hero */}
-      <section className="relative overflow-hidden pt-16">
-        <div className="bg-hero">
-          {/* Decorative elements */}
-          <div className="absolute inset-0 bg-glow" />
-          <div className="absolute right-0 top-1/4 h-72 w-72 rounded-full bg-accent/5 blur-3xl" />
-          <div className="absolute left-1/4 bottom-0 h-64 w-64 rounded-full bg-primary/5 blur-3xl" />
+      <section className="relative pt-16">
+        <div className="bg-hero min-h-[85vh] flex items-center">
+          {/* Animated background orbs */}
+          <div className="absolute inset-0 overflow-hidden">
+            <div className="absolute -left-32 top-1/4 h-[500px] w-[500px] rounded-full bg-primary/8 blur-[120px] animate-pulse-slow" />
+            <div className="absolute right-0 top-0 h-[400px] w-[400px] rounded-full bg-accent/6 blur-[100px] animate-float" />
+            <div className="absolute left-1/3 bottom-0 h-[300px] w-[300px] rounded-full bg-cyan/5 blur-[80px] animate-pulse-slow" />
+          </div>
+          
+          {/* Grid pattern overlay */}
+          <div className="absolute inset-0" style={{
+            backgroundImage: 'radial-gradient(circle at 1px 1px, hsl(var(--primary) / 0.03) 1px, transparent 0)',
+            backgroundSize: '40px 40px',
+          }} />
 
-          <div className="container relative z-10 flex flex-col items-center justify-center py-28 text-center md:py-36">
+          <div className="container relative z-10 flex flex-col items-center justify-center py-20 text-center">
             <div className="animate-slide-up">
-              <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-sm font-medium text-primary-foreground/80 backdrop-blur-sm">
-                <Shield className="h-3.5 w-3.5 text-primary-glow" />
+              <span className="mb-8 inline-flex items-center gap-2.5 rounded-full border border-primary/20 bg-primary/5 px-5 py-2 text-sm font-medium text-primary-foreground/80 backdrop-blur-md">
+                <Sparkles className="h-4 w-4 text-primary-glow" />
                 Privacy-Preserving Federated Learning
               </span>
             </div>
-            <h1 className="animate-slide-up-delay-1 mb-6 max-w-4xl font-heading text-5xl font-bold leading-[1.1] tracking-tight text-primary-foreground md:text-7xl lg:text-8xl">
+            <h1 className="animate-slide-up-delay-1 mb-8 max-w-5xl font-heading text-6xl font-bold leading-[1.05] tracking-tight text-primary-foreground md:text-8xl lg:text-[7rem]">
               Vital <span className="text-gradient">Sync</span>
             </h1>
-            <p className="animate-slide-up-delay-2 mb-10 max-w-2xl text-lg leading-relaxed text-primary-foreground/60 md:text-xl">
-              A federated learning platform enabling hospitals to collaboratively train
-              ICU mortality prediction models — without sharing raw patient data.
+            <p className="animate-slide-up-delay-2 mb-12 max-w-2xl text-lg leading-relaxed text-primary-foreground/50 md:text-xl">
+              Hospitals collaboratively train ICU mortality prediction models —
+              without ever sharing raw patient data.
             </p>
             <div className="animate-slide-up-delay-3 flex flex-wrap justify-center gap-4">
               <Link to={user ? '/hospital' : '/login'}>
-                <Button size="lg" className="gap-2 bg-gradient-to-r from-primary to-primary-glow px-8 shadow-glow-sm transition-shadow hover:shadow-glow">
+                <Button size="lg" className="h-13 gap-2.5 bg-gradient-to-r from-primary to-primary-glow px-10 text-base shadow-glow transition-all hover:shadow-[0_0_60px_hsl(var(--primary)/0.3)] hover:scale-[1.02]">
                   Get Started <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
               <a href="#features">
-                <Button variant="outline" size="lg" className="border-primary-foreground/15 px-8 text-primary-foreground/80 backdrop-blur-sm hover:bg-primary-foreground/5">
-                  Learn More
+                <Button variant="outline" size="lg" className="h-13 border-primary-foreground/10 px-10 text-base text-primary-foreground/70 backdrop-blur-md hover:bg-primary-foreground/5 hover:border-primary-foreground/20">
+                  Explore Features
                 </Button>
               </a>
             </div>
@@ -135,108 +130,92 @@ export default function Index() {
       </section>
 
       {/* Stats */}
-      <section className="relative border-b border-border bg-card py-14">
-        <div className="bg-mesh absolute inset-0" />
-        <div className="container relative grid grid-cols-2 gap-6 md:grid-cols-4">
-          {stats.map((stat) => (
-            <div key={stat.label} className="group text-center">
-              <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/8 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+      <section className="relative border-b border-border/50 bg-card/50 py-16 backdrop-blur-sm">
+        <div className="container grid grid-cols-2 gap-8 md:grid-cols-4">
+          {stats.map((stat, i) => (
+            <div key={stat.label} className="group relative text-center">
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/10 to-accent/10 text-primary transition-all duration-300 group-hover:scale-110 group-hover:shadow-glow-sm">
                 <stat.icon className="h-5 w-5" />
               </div>
-              <p className="font-heading text-2xl font-bold text-foreground md:text-3xl">{stat.value}</p>
-              <p className="mt-0.5 text-sm text-muted-foreground">{stat.label}</p>
+              <p className="font-heading text-3xl font-bold text-foreground md:text-4xl">{stat.value}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{stat.label}</p>
             </div>
           ))}
         </div>
       </section>
 
       {/* Features */}
-      <section id="features" className="relative py-24 md:py-32">
-        <div className="container">
-          <div className="mb-16 text-center">
-            <span className="mb-4 inline-block rounded-full bg-primary/8 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-primary">
-              Features
+      <section id="features" className="relative py-28 md:py-36">
+        {/* Subtle background */}
+        <div className="absolute inset-0 bg-mesh" />
+        
+        <div className="container relative">
+          <div className="mb-20 text-center">
+            <span className="mb-5 inline-flex items-center gap-2 rounded-full bg-primary/8 px-5 py-2 text-xs font-bold uppercase tracking-[0.2em] text-primary">
+              <Sparkles className="h-3 w-3" /> Core Capabilities
             </span>
-            <h2 className="mb-5 font-heading text-3xl font-bold text-foreground md:text-5xl">
-              Enterprise-Grade Federated Learning
+            <h2 className="mb-6 font-heading text-4xl font-bold text-foreground md:text-5xl lg:text-6xl">
+              Enterprise-Grade
+              <br />
+              <span className="text-gradient">Federated Learning</span>
             </h2>
-            <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
-              Built with deep learning, homomorphic encryption, and robust aggregation
-              to deliver accurate predictions while preserving patient privacy.
+            <p className="mx-auto max-w-2xl text-lg leading-relaxed text-muted-foreground">
+              Deep learning, homomorphic encryption, and robust aggregation — delivering
+              accurate predictions while preserving patient privacy.
             </p>
           </div>
+
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {features.map((f, i) => (
               <div
                 key={f.title}
-                className="group relative overflow-hidden rounded-2xl border border-border bg-card p-7 shadow-card card-hover"
-                style={{ animationDelay: `${i * 0.05}s` }}
+                className="group relative overflow-hidden rounded-2xl border border-border/50 bg-card/80 p-8 backdrop-blur-sm transition-all duration-500 hover:border-primary/20 hover:shadow-elevated hover:-translate-y-1"
               >
-                <div className={`mb-5 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${f.gradient} text-primary-foreground shadow-sm transition-transform duration-300 group-hover:scale-110`}>
-                  <f.icon className="h-5 w-5" />
+                {/* Hover glow */}
+                <div className="absolute -right-12 -top-12 h-32 w-32 rounded-full bg-gradient-to-br from-primary/8 to-accent/8 opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-100" />
+                
+                <div className="relative">
+                  <div className="mb-6 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/10 to-accent/10 text-primary transition-all duration-300 group-hover:from-primary group-hover:to-primary-glow group-hover:text-primary-foreground group-hover:shadow-glow-sm group-hover:scale-110">
+                    <f.icon className="h-6 w-6" />
+                  </div>
+                  <h3 className="mb-3 font-heading text-xl font-semibold text-foreground">{f.title}</h3>
+                  <p className="text-sm leading-relaxed text-muted-foreground">{f.description}</p>
                 </div>
-                <h3 className="mb-2 font-heading text-lg font-semibold text-foreground">{f.title}</h3>
-                <p className="text-sm leading-relaxed text-muted-foreground">{f.description}</p>
-                <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-gradient-to-br from-primary/5 to-accent/5 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Architecture */}
-      <section className="border-t border-border bg-card py-24 md:py-32">
-        <div className="container">
-          <div className="mb-14 text-center">
-            <span className="mb-4 inline-block rounded-full bg-accent/8 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-accent">
-              Architecture
-            </span>
-            <h2 className="mb-5 font-heading text-3xl font-bold text-foreground md:text-4xl">System Architecture</h2>
-            <p className="mx-auto max-w-xl text-muted-foreground">Four interconnected services forming a privacy-preserving federated learning pipeline.</p>
-          </div>
-          <div className="mx-auto grid max-w-5xl gap-5 md:grid-cols-2">
-            {archItems.map((item) => (
-              <div key={item.title} className="group rounded-2xl border border-border bg-background p-7 card-hover">
-                <div className="mb-4 flex items-center justify-between">
-                  <h3 className="font-heading text-lg font-semibold text-foreground">{item.title}</h3>
-                  <span className={`rounded-lg ${item.color} px-3 py-1 font-mono text-xs font-medium`}>
-                    :{item.port}
-                  </span>
-                </div>
-                <p className="text-sm leading-relaxed text-muted-foreground">{item.desc}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* Flow diagram */}
-          <div className="mx-auto mt-12 flex max-w-3xl items-center justify-center gap-3 text-xs font-medium text-muted-foreground">
-            <span className="rounded-lg bg-primary/10 px-3 py-1.5 text-primary">Hospital</span>
-            <ArrowRight className="h-3.5 w-3.5" />
-            <span className="rounded-lg bg-accent/10 px-3 py-1.5 text-accent">Encrypt</span>
-            <ArrowRight className="h-3.5 w-3.5" />
-            <span className="rounded-lg bg-warning/10 px-3 py-1.5 text-warning">Aggregate</span>
-            <ArrowRight className="h-3.5 w-3.5" />
-            <span className="rounded-lg bg-cyan/10 px-3 py-1.5 text-cyan">Decrypt</span>
-            <ArrowRight className="h-3.5 w-3.5" />
-            <span className="rounded-lg bg-success/10 px-3 py-1.5 text-success">Global Model</span>
-          </div>
+      {/* CTA */}
+      <section className="relative border-t border-border/50 py-28">
+        <div className="absolute inset-0 bg-hero" />
+        <div className="absolute inset-0 bg-glow" />
+        <div className="container relative z-10 text-center">
+          <h2 className="mb-6 font-heading text-3xl font-bold text-primary-foreground md:text-5xl">
+            Ready to protect patient privacy?
+          </h2>
+          <p className="mx-auto mb-10 max-w-xl text-lg text-primary-foreground/50">
+            Join the federated learning network and start training models collaboratively — your data never leaves your hospital.
+          </p>
+          <Link to={user ? '/hospital' : '/login'}>
+            <Button size="lg" className="h-13 gap-2.5 bg-gradient-to-r from-primary to-primary-glow px-10 text-base shadow-glow transition-all hover:shadow-[0_0_60px_hsl(var(--primary)/0.3)] hover:scale-[1.02]">
+              Get Started Now <ArrowRight className="h-4 w-4" />
+            </Button>
+          </Link>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-border bg-background py-10">
+      <footer className="border-t border-border/50 bg-card/30 py-10 backdrop-blur-sm">
         <div className="container flex flex-col items-center justify-between gap-4 text-sm text-muted-foreground md:flex-row">
           <div className="flex items-center gap-2.5">
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-accent">
               <Heart className="h-3.5 w-3.5 text-primary-foreground" />
             </div>
             <span className="font-heading font-semibold text-foreground">Vital Sync</span>
-            <span className="text-muted-foreground/60">— Federated Learning for ICU</span>
           </div>
-          <span className="flex items-center gap-1.5">
-            <Globe className="h-3.5 w-3.5" />
-            Privacy-First Healthcare AI
-          </span>
+          <span className="text-muted-foreground/60">Privacy-First Healthcare AI</span>
         </div>
       </footer>
     </div>
