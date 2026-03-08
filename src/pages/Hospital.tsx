@@ -89,8 +89,8 @@ export default function Hospital() {
           </TabsList>
 
           <TabsContent value="overview" className="animate-fade-in"><HospitalOverview /></TabsContent>
-          <TabsContent value="updates" className="animate-fade-in"><UpdateRequestsList /></TabsContent>
-          <TabsContent value="diagnostics" className="animate-fade-in"><DiagnosticsView /></TabsContent>
+          <TabsContent value="train-upload" className="animate-fade-in"><TrainAndUpload /></TabsContent>
+          <TabsContent value="diagnostics" className="animate-fade-in"><UpdateRequestsList /></TabsContent>
           <TabsContent value="predict" className="animate-fade-in"><PredictionForm /></TabsContent>
           <TabsContent value="icu-monitor" className="animate-fade-in"><ICUMonitor /></TabsContent>
         </Tabs>
