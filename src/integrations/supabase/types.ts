@@ -14,16 +14,212 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      model_versions: {
+        Row: {
+          accuracy: number | null
+          architecture: string
+          auc: number | null
+          confusion_matrix: Json | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          f1_score: number | null
+          feature_importance: Json | null
+          id: string
+          precision_score: number | null
+          recall: number | null
+          status: string
+          version_number: number
+          weights_url: string | null
+        }
+        Insert: {
+          accuracy?: number | null
+          architecture?: string
+          auc?: number | null
+          confusion_matrix?: Json | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          f1_score?: number | null
+          feature_importance?: Json | null
+          id?: string
+          precision_score?: number | null
+          recall?: number | null
+          status?: string
+          version_number: number
+          weights_url?: string | null
+        }
+        Update: {
+          accuracy?: number | null
+          architecture?: string
+          auc?: number | null
+          confusion_matrix?: Json | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          f1_score?: number | null
+          feature_importance?: Json | null
+          id?: string
+          precision_score?: number | null
+          recall?: number | null
+          status?: string
+          version_number?: number
+          weights_url?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          full_name: string | null
+          hospital_name: string | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name?: string | null
+          hospital_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name?: string | null
+          hospital_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      system_config: {
+        Row: {
+          id: string
+          key: string
+          updated_at: string
+          updated_by: string | null
+          value: Json
+        }
+        Insert: {
+          id?: string
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+          value: Json
+        }
+        Update: {
+          id?: string
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Relationships: []
+      }
+      update_requests: {
+        Row: {
+          clinical_outlier_pct: number | null
+          created_at: string
+          diagnostics: Json | null
+          encrypted_delta_url: string | null
+          hospital_id: string
+          hospital_name: string
+          id: string
+          key_fingerprint_match: boolean | null
+          l2_norm: number | null
+          label_distribution: Json | null
+          model_version_id: string
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          trust_score: number | null
+        }
+        Insert: {
+          clinical_outlier_pct?: number | null
+          created_at?: string
+          diagnostics?: Json | null
+          encrypted_delta_url?: string | null
+          hospital_id: string
+          hospital_name: string
+          id?: string
+          key_fingerprint_match?: boolean | null
+          l2_norm?: number | null
+          label_distribution?: Json | null
+          model_version_id: string
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          trust_score?: number | null
+        }
+        Update: {
+          clinical_outlier_pct?: number | null
+          created_at?: string
+          diagnostics?: Json | null
+          encrypted_delta_url?: string | null
+          hospital_id?: string
+          hospital_name?: string
+          id?: string
+          key_fingerprint_match?: boolean | null
+          l2_norm?: number | null
+          label_distribution?: Json | null
+          model_version_id?: string
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          trust_score?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "update_requests_model_version_id_fkey"
+            columns: ["model_version_id"]
+            isOneToOne: false
+            referencedRelation: "model_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "hospital" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +346,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "hospital", "user"],
+    },
   },
 } as const
