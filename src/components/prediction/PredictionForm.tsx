@@ -38,8 +38,9 @@ interface PredictionResult {
 }
 
 export default function PredictionForm() {
-  const { selectedModelVersion } = useData();
+  const { selectedModelVersion, setSelectedModelVersion, modelVersions } = useData();
   const { toast } = useToast();
+  const [localModelVersion, setLocalModelVersion] = useState(selectedModelVersion);
   const [values, setValues] = useState<Record<string, number>>(
     Object.fromEntries(FEATURES.map(f => [f.key, f.defaultVal]))
   );
