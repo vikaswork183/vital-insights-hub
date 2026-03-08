@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useData } from '@/context/DataProvider';
-import { Loader2, AlertTriangle, CheckCircle, ClipboardPaste } from 'lucide-react';
+import { Loader2, AlertTriangle, CheckCircle, ClipboardPaste, RotateCcw, Brain } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const FEATURES = [
@@ -51,6 +51,12 @@ export default function PredictionForm() {
     setValues(prev => ({ ...prev, [key]: parseFloat(val) || 0 }));
   };
 
+  const handleReset = () => {
+    setValues(Object.fromEntries(FEATURES.map(f => [f.key, f.defaultVal])));
+    setResult(null);
+    setBulkInput('');
+  };
+
   const handleBulkFill = () => {
     const parts = bulkInput.split(',').map(s => s.trim());
     if (parts.length !== FEATURES.length) {
@@ -93,10 +99,9 @@ export default function PredictionForm() {
     } catch (err: any) {
       toast({
         title: 'Prediction Error',
-        description: 'Could not reach the backend. Make sure the FastAPI server is running on port 8000.',
+        description: 'Could not reach the backend. Using simulated prediction for demo.',
         variant: 'destructive',
       });
-      // Fallback: generate a simulated result for UI demonstration
       const simProb = simulatePrediction(values);
       setResult({
         mortality_probability: simProb,
@@ -112,38 +117,52 @@ export default function PredictionForm() {
 
   return (
     <div className="space-y-6">
-      <Card className="shadow-card">
+      <Card className="shadow-card overflow-hidden">
+        <div className="h-0.5 bg-gradient-to-r from-primary via-accent to-teal" />
         <CardHeader>
-          <CardTitle>ICU Mortality Prediction</CardTitle>
-          <CardDescription>
-            Enter patient vitals and lab values to predict mortality risk using model v{selectedModelVersion}
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="font-heading flex items-center gap-2">
+                <Brain className="h-5 w-5 text-primary" />
+                ICU Mortality Prediction
+              </CardTitle>
+              <CardDescription className="mt-1">
+                Enter patient vitals and lab values to predict mortality risk using model v{selectedModelVersion}
+              </CardDescription>
+            </div>
+            <Button variant="ghost" size="sm" onClick={handleReset} className="gap-1.5 text-muted-foreground">
+              <RotateCcw className="h-3.5 w-3.5" /> Reset
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Bulk fill section */}
-          <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
-            <Label className="text-sm font-medium">Quick Fill (comma-separated values)</Label>
-            <p className="text-xs text-muted-foreground">
-              Paste {FEATURES.length} values in order: {FEATURES.map(f => f.label.split(' (')[0]).join(', ')}
+          <div className="rounded-xl border border-border/50 bg-muted/20 p-5 space-y-3">
+            <div className="flex items-center gap-2">
+              <ClipboardPaste className="h-4 w-4 text-primary" />
+              <Label className="text-sm font-semibold">Quick Fill</Label>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Paste {FEATURES.length} comma-separated values in order: {FEATURES.map(f => f.label.split(' (')[0]).join(', ')}
             </p>
             <div className="flex gap-2">
               <Textarea
                 placeholder="e.g. 65, 1, 82, 120, 70, 85, 18, 97, 37.0, 14, 1.1, 22, 120, 10.0, 12.0, 200, 1.5, 0.7, 18, 0"
                 value={bulkInput}
                 onChange={(e) => setBulkInput(e.target.value)}
-                className="font-mono text-sm min-h-[60px]"
+                className="font-mono text-sm min-h-[56px] resize-none"
               />
-              <Button variant="secondary" onClick={handleBulkFill} className="shrink-0 gap-1.5">
+              <Button variant="secondary" onClick={handleBulkFill} className="shrink-0 gap-1.5 h-auto">
                 <ClipboardPaste className="h-4 w-4" /> Fill
               </Button>
             </div>
           </div>
 
           {/* Individual fields */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
             {FEATURES.map((f) => (
               <div key={f.key} className="space-y-1.5">
-                <Label htmlFor={f.key} className="text-xs">{f.label}</Label>
+                <Label htmlFor={f.key} className="text-[11px] font-medium text-muted-foreground">{f.label}</Label>
                 <Input
                   id={f.key}
                   type="number"
@@ -152,22 +171,24 @@ export default function PredictionForm() {
                   max={f.max}
                   value={values[f.key]}
                   onChange={(e) => handleChange(f.key, e.target.value)}
-                  className="font-mono text-sm"
+                  className="font-mono text-sm h-10"
                 />
               </div>
             ))}
           </div>
-          <Button onClick={handlePredict} className="mt-6" disabled={loading}>
-            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+
+          <Button onClick={handlePredict} disabled={loading} className="gap-2 bg-gradient-to-r from-primary to-primary-glow shadow-glow-sm hover:shadow-glow transition-shadow">
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Brain className="h-4 w-4" />}
             Run Prediction
           </Button>
         </CardContent>
       </Card>
 
       {result && (
-        <Card className="shadow-card">
+        <Card className="shadow-card overflow-hidden animate-scale-in">
+          <div className={`h-1 ${result.mortality_probability > 0.5 ? 'bg-gradient-to-r from-destructive to-warning' : 'bg-gradient-to-r from-success to-accent'}`} />
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="font-heading flex items-center gap-2">
               {result.mortality_probability > 0.5 ? (
                 <AlertTriangle className="h-5 w-5 text-destructive" />
               ) : (
@@ -177,32 +198,35 @@ export default function PredictionForm() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-6 md:grid-cols-3">
-              <div className="rounded-xl border border-border p-6 text-center">
-                <p className="text-sm text-muted-foreground">Mortality Probability</p>
-                <p className="mt-2 text-4xl font-bold text-foreground">
+            <div className="grid gap-5 md:grid-cols-3">
+              <div className="rounded-2xl border border-border/50 bg-muted/20 p-7 text-center">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Mortality Probability</p>
+                <p className="mt-3 font-heading text-5xl font-bold text-foreground">
                   {(result.mortality_probability * 100).toFixed(1)}%
                 </p>
               </div>
-              <div className="rounded-xl border border-border p-6 text-center">
-                <p className="text-sm text-muted-foreground">Risk Category</p>
-                <p className={`mt-2 text-2xl font-bold ${
-                  result.risk_category === 'High Risk' ? 'text-destructive' :
-                  result.risk_category === 'Moderate Risk' ? 'text-warning' : 'text-success'
+              <div className="rounded-2xl border border-border/50 bg-muted/20 p-7 text-center flex flex-col items-center justify-center">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Risk Category</p>
+                <div className={`mt-3 inline-flex items-center gap-2 rounded-full px-5 py-2 text-lg font-bold ${
+                  result.risk_category === 'High Risk' ? 'bg-destructive/10 text-destructive' :
+                  result.risk_category === 'Moderate Risk' ? 'bg-warning/10 text-warning' : 'bg-success/10 text-success'
                 }`}>
+                  {result.risk_category === 'High Risk' ? <AlertTriangle className="h-4 w-4" /> :
+                   result.risk_category === 'Moderate Risk' ? <AlertTriangle className="h-4 w-4" /> :
+                   <CheckCircle className="h-4 w-4" />}
                   {result.risk_category}
-                </p>
+                </div>
               </div>
-              <div className="rounded-xl border border-border p-6">
-                <p className="mb-3 text-sm font-medium text-muted-foreground">Top Feature Contributions</p>
-                <div className="space-y-2">
+              <div className="rounded-2xl border border-border/50 bg-muted/20 p-7">
+                <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Top Feature Contributions</p>
+                <div className="space-y-2.5">
                   {Object.entries(result.feature_contributions)
                     .sort(([, a], [, b]) => Math.abs(b) - Math.abs(a))
                     .slice(0, 5)
                     .map(([name, value]) => (
-                      <div key={name} className="flex items-center justify-between text-xs">
-                        <span className="text-muted-foreground">{name}</span>
-                        <span className={`font-mono font-medium ${value > 0 ? 'text-destructive' : 'text-success'}`}>
+                      <div key={name} className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground truncate mr-2">{name}</span>
+                        <span className={`font-mono text-xs font-semibold ${value > 0 ? 'text-destructive' : 'text-success'}`}>
                           {value > 0 ? '+' : ''}{value.toFixed(3)}
                         </span>
                       </div>
@@ -217,7 +241,6 @@ export default function PredictionForm() {
   );
 }
 
-// Simple simulation for UI preview when backend is unavailable
 function simulatePrediction(values: Record<string, number>): number {
   let risk = 0.15;
   if (values.age > 70) risk += 0.15;
