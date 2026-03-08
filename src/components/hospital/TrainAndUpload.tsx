@@ -381,13 +381,13 @@ export default function TrainAndUpload() {
         label_distribution: agg.checks.find(c => c.label === 'Label Distribution')
           ? { mortality_rate: parseFloat(agg.checks.find(c => c.label === 'Label Distribution')!.value) / 100 }
           : { mortality_rate: 0.15 },
-        diagnostics: {
+        diagnostics: JSON.parse(JSON.stringify({
           local_accuracy: trainedMetrics.accuracy,
           local_f1: trainedMetrics.f1,
           local_auc: trainedMetrics.auc,
           flagged_features: agg.flaggedFeatures,
           aggregation_checks: agg.checks,
-        },
+        })),
         status: agg.trustScore >= 70 ? 'pending' : 'rejected',
         rejection_reason: agg.trustScore < 70
           ? `Trust score ${agg.trustScore}/100 below threshold. Flagged: ${agg.flaggedFeatures.slice(0, 3).join('; ')}`
