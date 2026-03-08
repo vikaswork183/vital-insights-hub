@@ -18,9 +18,9 @@ export default function Admin() {
   }, [user, isAdmin, isLoading, navigate]);
 
   if (isLoading) return (
-    <div className="flex min-h-screen items-center justify-center">
+    <div className="flex min-h-screen items-center justify-center bg-background">
       <div className="flex flex-col items-center gap-3">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-destructive border-t-transparent" />
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
         <p className="text-sm text-muted-foreground">Loading admin...</p>
       </div>
     </div>
@@ -29,18 +29,20 @@ export default function Admin() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 border-b border-border/50 bg-card/70 backdrop-blur-2xl">
+      <div className="fixed inset-0 bg-mesh pointer-events-none" />
+
+      <header className="sticky top-0 z-50 border-b border-border bg-card/80 backdrop-blur-2xl">
         <div className="container flex h-14 items-center justify-between">
           <Link to="/" className="flex items-center gap-2.5">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-destructive to-warning">
-              <Heart className="h-3.5 w-3.5 text-primary-foreground" />
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg border border-destructive/20 bg-destructive/10">
+              <Heart className="h-3.5 w-3.5 text-destructive" />
             </div>
             <span className="font-heading font-bold text-foreground">Vital Sync</span>
-            <span className="rounded-md bg-destructive/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-destructive">Admin</span>
+            <span className="rounded-md border border-destructive/20 bg-destructive/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-destructive">Admin</span>
           </Link>
           <div className="flex items-center gap-3">
             <Link to="/hospital">
-              <Button variant="ghost" size="sm" className="gap-1.5">
+              <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-foreground">
                 <Hospital className="h-3.5 w-3.5" /> Hospital
               </Button>
             </Link>
@@ -51,27 +53,27 @@ export default function Admin() {
         </div>
       </header>
 
-      <main className="container py-8">
+      <main className="container relative z-10 py-8">
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-1">
-            <ShieldCheck className="h-6 w-6 text-destructive" />
+            <ShieldCheck className="h-6 w-6 text-primary" />
             <h1 className="font-heading text-3xl font-bold text-foreground">Admin Dashboard</h1>
           </div>
           <p className="ml-9 text-muted-foreground">Manage model versions, review updates, and monitor the federated learning network</p>
         </div>
 
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="glass-strong rounded-xl p-1">
-            <TabsTrigger value="overview" className="gap-1.5 rounded-lg data-[state=active]:shadow-sm">
+          <TabsList className="border border-border bg-card/80 backdrop-blur-xl rounded-xl p-1">
+            <TabsTrigger value="overview" className="gap-1.5 rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
               <BarChart3 className="h-3.5 w-3.5" /> Overview
             </TabsTrigger>
-            <TabsTrigger value="pending" className="gap-1.5 rounded-lg data-[state=active]:shadow-sm">
+            <TabsTrigger value="pending" className="gap-1.5 rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
               <FileCheck className="h-3.5 w-3.5" /> Pending
             </TabsTrigger>
-            <TabsTrigger value="models" className="gap-1.5 rounded-lg data-[state=active]:shadow-sm">
+            <TabsTrigger value="models" className="gap-1.5 rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
               <Settings className="h-3.5 w-3.5" /> Models
             </TabsTrigger>
-            <TabsTrigger value="features" className="gap-1.5 rounded-lg data-[state=active]:shadow-sm">
+            <TabsTrigger value="features" className="gap-1.5 rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
               Features
             </TabsTrigger>
           </TabsList>

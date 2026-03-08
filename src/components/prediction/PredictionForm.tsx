@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -60,22 +59,14 @@ export default function PredictionForm() {
   const handleBulkFill = () => {
     const parts = bulkInput.split(',').map(s => s.trim());
     if (parts.length !== FEATURES.length) {
-      toast({
-        title: 'Invalid input',
-        description: `Expected ${FEATURES.length} comma-separated values, got ${parts.length}.`,
-        variant: 'destructive',
-      });
+      toast({ title: 'Invalid input', description: `Expected ${FEATURES.length} comma-separated values, got ${parts.length}.`, variant: 'destructive' });
       return;
     }
     const newValues: Record<string, number> = {};
     for (let i = 0; i < FEATURES.length; i++) {
       const num = parseFloat(parts[i]);
       if (isNaN(num)) {
-        toast({
-          title: 'Invalid value',
-          description: `"${parts[i]}" at position ${i + 1} (${FEATURES[i].label}) is not a valid number.`,
-          variant: 'destructive',
-        });
+        toast({ title: 'Invalid value', description: `"${parts[i]}" at position ${i + 1} (${FEATURES[i].label}) is not a valid number.`, variant: 'destructive' });
         return;
       }
       newValues[FEATURES[i].key] = num;
@@ -92,16 +83,11 @@ export default function PredictionForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ features: values, model_version: selectedModelVersion }),
       });
-
       if (!response.ok) throw new Error('Prediction failed');
       const data = await response.json();
       setResult(data);
     } catch (err: any) {
-      toast({
-        title: 'Prediction Error',
-        description: 'Could not reach the backend. Using simulated prediction for demo.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Prediction Error', description: 'Could not reach the backend. Using simulated prediction for demo.', variant: 'destructive' });
       const simProb = simulatePrediction(values);
       setResult({
         mortality_probability: simProb,
@@ -117,30 +103,29 @@ export default function PredictionForm() {
 
   return (
     <div className="space-y-6">
-      <Card className="shadow-card overflow-hidden">
-        <div className="h-0.5 bg-gradient-to-r from-primary via-accent to-teal" />
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="font-heading flex items-center gap-2">
+      <div className="rounded-2xl border border-border bg-card shadow-card overflow-hidden">
+        <div className="h-0.5 bg-gradient-to-r from-primary via-teal to-cyan" />
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-primary/20 bg-primary/10">
                 <Brain className="h-5 w-5 text-primary" />
-                ICU Mortality Prediction
-              </CardTitle>
-              <CardDescription className="mt-1">
-                Enter patient vitals and lab values to predict mortality risk using model v{selectedModelVersion}
-              </CardDescription>
+              </div>
+              <div>
+                <h3 className="font-heading text-lg font-bold text-foreground">ICU Mortality Prediction</h3>
+                <p className="text-sm text-muted-foreground">Enter patient vitals and lab values to predict mortality risk using model v{selectedModelVersion}</p>
+              </div>
             </div>
-            <Button variant="ghost" size="sm" onClick={handleReset} className="gap-1.5 text-muted-foreground">
+            <Button variant="ghost" size="sm" onClick={handleReset} className="gap-1.5 text-muted-foreground hover:text-foreground">
               <RotateCcw className="h-3.5 w-3.5" /> Reset
             </Button>
           </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Bulk fill section */}
-          <div className="rounded-xl border border-border/50 bg-muted/20 p-5 space-y-3">
+
+          {/* Bulk fill */}
+          <div className="rounded-xl border border-border bg-secondary/30 p-5 space-y-3 mb-6">
             <div className="flex items-center gap-2">
               <ClipboardPaste className="h-4 w-4 text-primary" />
-              <Label className="text-sm font-semibold">Quick Fill</Label>
+              <Label className="text-sm font-semibold text-foreground">Quick Fill</Label>
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed">
               Paste {FEATURES.length} comma-separated values in order: {FEATURES.map(f => f.label.split(' (')[0]).join(', ')}
@@ -150,16 +135,16 @@ export default function PredictionForm() {
                 placeholder="e.g. 65, 1, 82, 120, 70, 85, 18, 97, 37.0, 14, 1.1, 22, 120, 10.0, 12.0, 200, 1.5, 0.7, 18, 0"
                 value={bulkInput}
                 onChange={(e) => setBulkInput(e.target.value)}
-                className="font-mono text-sm min-h-[56px] resize-none"
+                className="font-mono text-sm min-h-[56px] resize-none bg-card border-border text-foreground"
               />
-              <Button variant="secondary" onClick={handleBulkFill} className="shrink-0 gap-1.5 h-auto">
+              <Button variant="secondary" onClick={handleBulkFill} className="shrink-0 gap-1.5 h-auto border border-border">
                 <ClipboardPaste className="h-4 w-4" /> Fill
               </Button>
             </div>
           </div>
 
           {/* Individual fields */}
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4 mb-6">
             {FEATURES.map((f) => (
               <div key={f.key} className="space-y-1.5">
                 <Label htmlFor={f.key} className="text-[11px] font-medium text-muted-foreground">{f.label}</Label>
@@ -171,45 +156,43 @@ export default function PredictionForm() {
                   max={f.max}
                   value={values[f.key]}
                   onChange={(e) => handleChange(f.key, e.target.value)}
-                  className="font-mono text-sm h-10"
+                  className="font-mono text-sm h-10 bg-secondary border-border text-foreground"
                 />
               </div>
             ))}
           </div>
 
-          <Button onClick={handlePredict} disabled={loading} className="gap-2 bg-gradient-to-r from-primary to-primary-glow shadow-glow-sm hover:shadow-glow transition-shadow">
+          <Button onClick={handlePredict} disabled={loading} className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90 shadow-glow-sm hover:shadow-glow transition-all font-semibold">
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Brain className="h-4 w-4" />}
             Run Prediction
           </Button>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {result && (
-        <Card className="shadow-card overflow-hidden animate-scale-in">
-          <div className={`h-1 ${result.mortality_probability > 0.5 ? 'bg-gradient-to-r from-destructive to-warning' : 'bg-gradient-to-r from-success to-accent'}`} />
-          <CardHeader>
-            <CardTitle className="font-heading flex items-center gap-2">
+        <div className="rounded-2xl border border-border bg-card shadow-card overflow-hidden animate-scale-in">
+          <div className={`h-1 ${result.mortality_probability > 0.5 ? 'bg-gradient-to-r from-destructive to-warning' : 'bg-gradient-to-r from-success to-primary'}`} />
+          <div className="p-6">
+            <h3 className="font-heading text-lg font-bold text-foreground flex items-center gap-2 mb-6">
               {result.mortality_probability > 0.5 ? (
                 <AlertTriangle className="h-5 w-5 text-destructive" />
               ) : (
                 <CheckCircle className="h-5 w-5 text-success" />
               )}
               Prediction Result
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+            </h3>
             <div className="grid gap-5 md:grid-cols-3">
-              <div className="rounded-2xl border border-border/50 bg-muted/20 p-7 text-center">
+              <div className="rounded-2xl border border-border bg-secondary/30 p-7 text-center">
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Mortality Probability</p>
                 <p className="mt-3 font-heading text-5xl font-bold text-foreground">
                   {(result.mortality_probability * 100).toFixed(1)}%
                 </p>
               </div>
-              <div className="rounded-2xl border border-border/50 bg-muted/20 p-7 text-center flex flex-col items-center justify-center">
+              <div className="rounded-2xl border border-border bg-secondary/30 p-7 text-center flex flex-col items-center justify-center">
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Risk Category</p>
-                <div className={`mt-3 inline-flex items-center gap-2 rounded-full px-5 py-2 text-lg font-bold ${
-                  result.risk_category === 'High Risk' ? 'bg-destructive/10 text-destructive' :
-                  result.risk_category === 'Moderate Risk' ? 'bg-warning/10 text-warning' : 'bg-success/10 text-success'
+                <div className={`mt-3 inline-flex items-center gap-2 rounded-full border px-5 py-2 text-lg font-bold ${
+                  result.risk_category === 'High Risk' ? 'border-destructive/20 bg-destructive/10 text-destructive' :
+                  result.risk_category === 'Moderate Risk' ? 'border-warning/20 bg-warning/10 text-warning' : 'border-success/20 bg-success/10 text-success'
                 }`}>
                   {result.risk_category === 'High Risk' ? <AlertTriangle className="h-4 w-4" /> :
                    result.risk_category === 'Moderate Risk' ? <AlertTriangle className="h-4 w-4" /> :
@@ -217,7 +200,7 @@ export default function PredictionForm() {
                   {result.risk_category}
                 </div>
               </div>
-              <div className="rounded-2xl border border-border/50 bg-muted/20 p-7">
+              <div className="rounded-2xl border border-border bg-secondary/30 p-7">
                 <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Top Feature Contributions</p>
                 <div className="space-y-2.5">
                   {Object.entries(result.feature_contributions)
@@ -234,8 +217,8 @@ export default function PredictionForm() {
                 </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
     </div>
   );
