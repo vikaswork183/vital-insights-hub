@@ -265,8 +265,22 @@ function runAggregationChecks(
 
   return { checks, trustScore, l2Norm, outlierPct, flaggedFeatures };
 }
+// Simulate encryption logs (encryption is always valid in frontend demo)
+function simulateEncryption(): EncryptionLog[] {
+  const now = new Date();
+  const ts = (offsetMs: number) => new Date(now.getTime() + offsetMs).toISOString().slice(11, 23);
+  return [
+    { timestamp: ts(0), action: 'KEY_GENERATION', detail: 'Generated Paillier keypair (2048-bit)', status: 'ok' },
+    { timestamp: ts(120), action: 'DELTA_COMPUTATION', detail: 'Computed model delta (Δw) against global weights v3', status: 'info' },
+    { timestamp: ts(340), action: 'ENCRYPT_WEIGHTS', detail: `Encrypted ${(Math.random() * 50 + 20).toFixed(0)} weight tensors using homomorphic encryption`, status: 'ok' },
+    { timestamp: ts(580), action: 'FINGERPRINT', detail: `Key fingerprint: SHA256:${Array.from({ length: 8 }, () => Math.floor(Math.random() * 256).toString(16).padStart(2, '0')).join(':')}`, status: 'ok' },
+    { timestamp: ts(650), action: 'INTEGRITY_HASH', detail: `HMAC-SHA256 digest computed for encrypted payload`, status: 'ok' },
+    { timestamp: ts(720), action: 'SERIALIZE', detail: 'Serialized encrypted delta to protobuf format (2.3 MB)', status: 'info' },
+    { timestamp: ts(800), action: 'UPLOAD_READY', detail: 'Encrypted payload ready for secure transmission', status: 'ok' },
+  ];
+}
 
-export default function TrainAndUpload() {
+
   const { user, profile, modelVersions, refreshUpdateRequests } = useData();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
