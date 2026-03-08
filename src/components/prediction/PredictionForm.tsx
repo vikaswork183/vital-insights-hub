@@ -119,8 +119,27 @@ export default function PredictionForm() {
             Enter patient vitals and lab values to predict mortality risk using model v{selectedModelVersion}
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <CardContent className="space-y-6">
+          {/* Bulk fill section */}
+          <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
+            <Label className="text-sm font-medium">Quick Fill (comma-separated values)</Label>
+            <p className="text-xs text-muted-foreground">
+              Paste {FEATURES.length} values in order: {FEATURES.map(f => f.label.split(' (')[0]).join(', ')}
+            </p>
+            <div className="flex gap-2">
+              <Textarea
+                placeholder="e.g. 65, 1, 82, 120, 70, 85, 18, 97, 37.0, 14, 1.1, 22, 120, 10.0, 12.0, 200, 1.5, 0.7, 18, 0"
+                value={bulkInput}
+                onChange={(e) => setBulkInput(e.target.value)}
+                className="font-mono text-sm min-h-[60px]"
+              />
+              <Button variant="secondary" onClick={handleBulkFill} className="shrink-0 gap-1.5">
+                <ClipboardPaste className="h-4 w-4" /> Fill
+              </Button>
+            </div>
+          </div>
+
+          {/* Individual fields */}
             {FEATURES.map((f) => (
               <div key={f.key} className="space-y-1.5">
                 <Label htmlFor={f.key} className="text-xs">{f.label}</Label>
