@@ -140,6 +140,7 @@ export default function PredictionForm() {
           </div>
 
           {/* Individual fields */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {FEATURES.map((f) => (
               <div key={f.key} className="space-y-1.5">
                 <Label htmlFor={f.key} className="text-xs">{f.label}</Label>
