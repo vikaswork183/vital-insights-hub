@@ -1,101 +1,123 @@
 # Vital Sync — Backend Services
 
+## Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           DEPLOYMENT DIAGRAM                                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   ┌─────────────────┐      ┌─────────────────┐      ┌─────────────────┐    │
+│   │  HOSPITAL A     │      │  HOSPITAL B     │      │  HOSPITAL C     │    │
+│   │  LOCAL SERVER   │      │  LOCAL SERVER   │      │  LOCAL SERVER   │    │
+│   │                 │      │                 │      │                 │    │
+│   │ ┌─────────────┐ │      │ ┌─────────────┐ │      │ ┌─────────────┐ │    │
+│   │ │ hospital_   │ │      │ │ hospital_   │ │      │ │ hospital_   │ │    │
+│   │ │ agent/      │ │      │ │ agent/      │ │      │ │ agent/      │ │    │
+│   │ │ (port 8002) │ │      │ │ (port 8002) │ │      │ │ (port 8002) │ │    │
+│   │ └──────┬──────┘ │      │ └──────┬──────┘ │      │ └──────┬──────┘ │    │
+│   │        │        │      │        │        │      │        │        │    │
+│   │   Patient CSV   │      │   Patient CSV   │      │   Patient CSV   │    │
+│   │   (NEVER LEAVES)│      │   (NEVER LEAVES)│      │   (NEVER LEAVES)│    │
+│   └────────┼────────┘      └────────┼────────┘      └────────┼────────┘    │
+│            │                        │                        │             │
+│            │    Encrypted Deltas    │                        │             │
+│            └────────────┬───────────┴────────────────────────┘             │
+│                         │                                                   │
+│                         ▼                                                   │
+│   ┌─────────────────────────────────────────────────────────────────────┐  │
+│   │                      GLOBAL PUBLIC SERVER                            │  │
+│   │                                                                      │  │
+│   │  ┌──────────────────────────┐    ┌──────────────────────────┐       │  │
+│   │  │     admin_server/        │    │      keyholder/          │       │  │
+│   │  │     (port 8000)          │    │      (port 8001)         │       │  │
+│   │  │                          │    │                          │       │  │
+│   │  │  • Model versioning      │◄───│  • Paillier keypair      │       │  │
+│   │  │  • Aggregation           │    │  • Public key dist       │       │  │
+│   │  │  • Trust scoring         │    │  • Aggregate decryption  │       │  │
+│   │  │  • Predictions           │    │                          │       │  │
+│   │  └──────────────────────────┘    └──────────────────────────┘       │  │
+│   │                                                                      │  │
+│   └─────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+## Service Components
+
+| Directory | Port | Deployment | Purpose |
+|-----------|------|------------|---------|
+| `admin_server/` | 8000 | Global Public Server | Model management, aggregation, predictions |
+| `keyholder/` | 8001 | Secure Isolated Server | Paillier key management |
+| `hospital_agent/` | 8002 | Hospital Local Server | Local training, encrypted updates |
+| `dataset_generator/` | — | Utility | Generate synthetic test data |
+
 ## Quick Start
 
-### 1. Install Dependencies
+### 1. Generate Test Data
 ```bash
-cd backend
+cd dataset_generator
 pip install -r requirements.txt
-```
-
-### 2. Generate Datasets
-```bash
 python generate_datasets.py
 ```
-This creates:
-- `data/hospital_1.csv` (20,000 rows)
-- `data/hospital_2.csv` (20,000 rows)
-- `data/hospital_3.csv` (20,000 rows)
-- `data/hospital_malicious.csv` (20,000 rows, poisoned)
-- `data/test_holdout.csv` (5,000 rows)
 
-### 3. Train the Model
+### 2. Start Keyholder (Terminal 1)
 ```bash
-python train.py --train data/hospital_1.csv --test data/test_holdout.csv --version 1
-```
-
-### 4. Start Services
-
-**Terminal 1 — Backend Server (port 8000):**
-```bash
+cd keyholder
+pip install -r requirements.txt
 python main.py
 ```
 
-**Terminal 2 — Keyholder (port 8001):**
+### 3. Start Admin Server (Terminal 2)
 ```bash
-python keyholder.py
+cd admin_server
+pip install -r requirements.txt
+python main.py
 ```
 
-**Terminal 3 — Hospital Agent (port 8002):**
+### 4. Start Hospital Agent (Terminal 3)
 ```bash
-HOSPITAL_NAME="City General" HOSPITAL_ID="hospital-1" python hospital_agent.py
+cd hospital_agent
+pip install -r requirements.txt
+export HOSPITAL_NAME="City General"
+export HOSPITAL_ID="hospital-1"
+python main.py
 ```
 
-### 5. Federated Learning Workflow
+## Federated Learning Workflow
 
-1. Train locally via hospital agent:
-```bash
-curl -X POST http://localhost:8002/train \
-  -H "Content-Type: application/json" \
-  -d '{"csv_path": "data/hospital_1.csv", "model_version": "1"}'
-```
+1. **Train locally** at hospital:
+   ```bash
+   curl -X POST http://localhost:8002/train \
+     -H "Content-Type: application/json" \
+     -d '{"csv_path": "../dataset_generator/data/hospital_1.csv"}'
+   ```
 
-2. Submit encrypted update:
-```bash
-curl -X POST http://localhost:8002/submit_update \
-  -H "Content-Type: application/json" \
-  -d '{"model_version": "1", "encrypt": true}'
-```
+2. **Submit encrypted update**:
+   ```bash
+   curl -X POST http://localhost:8002/submit_update \
+     -H "Content-Type: application/json" \
+     -d '{"model_version": "1", "encrypt": true}'
+   ```
 
-3. View diagnostics on backend:
-```bash
-curl http://localhost:8000/pending_updates
-```
+3. **View diagnostics** on admin server:
+   ```bash
+   curl http://localhost:8000/pending_updates
+   ```
 
-4. Run prediction:
-```bash
-curl -X POST http://localhost:8000/predict \
-  -H "Content-Type: application/json" \
-  -d '{
-    "features": {
-      "age": 65, "gender": 1, "heart_rate": 82, "systolic_bp": 120,
-      "diastolic_bp": 70, "map": 85, "respiratory_rate": 18, "spo2": 97,
-      "temperature": 37.0, "gcs_total": 14, "creatinine": 1.1, "bun": 22,
-      "glucose": 120, "wbc": 10.0, "hemoglobin": 12.0, "platelets": 200,
-      "lactate": 1.5, "shock_index": 0.7, "bun_cr_ratio": 18, "map_deviation": 0
-    },
-    "model_version": "1"
-  }'
-```
+4. **Aggregate approved updates**:
+   ```bash
+   curl -X POST http://localhost:8000/aggregate \
+     -H "Content-Type: application/json" \
+     -d '{"model_version": "1", "update_ids": ["hospital-1_1_0"]}'
+   ```
 
-## Architecture
+## Privacy Guarantees
 
-```
-┌──────────────┐    ┌──────────────┐    ┌──────────────┐
-│   Hospital   │    │   Backend    │    │  Keyholder   │
-│   Agent      │───▶│   Server     │───▶│  Service     │
-│  (port 8002) │    │  (port 8000) │    │  (port 8001) │
-└──────────────┘    └──────────────┘    └──────────────┘
-       │                   │                    │
-   Local CSV          Aggregation          Private Key
-   FT-Transformer     Trust Scoring        Decryption
-   Delta + Encrypt    Model Versions       (aggregated only)
-```
-
-## Model: FT-Transformer
-
-NOT an MLP. Uses Feature Tokenizer + Transformer architecture:
-- Each feature gets its own learned embedding
-- Multi-head self-attention for feature interactions
-- [CLS] token for classification
-- Reference: Gorishniy et al., NeurIPS 2021
+| What | Where | Who Can See |
+|------|-------|-------------|
+| Patient Data | Hospital only | Hospital staff |
+| Model Weights | Hospital only | Local computation |
+| Encrypted Deltas | Transit + Admin | Nobody (encrypted) |
+| Aggregated Delta | Admin → Keyholder | Keyholder only |
+| Final Model | Global server | Everyone |
