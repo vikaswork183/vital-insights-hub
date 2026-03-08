@@ -76,10 +76,6 @@ export default function Index() {
                   <Button size="sm" variant="outline">Admin Login</Button>
                 </Link>
               </>
-            ) : (
-              <Link to="/login">
-                <Button size="sm">Sign In</Button>
-              </Link>
             )}
           </div>
         </div>
