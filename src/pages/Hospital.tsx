@@ -18,7 +18,7 @@ export default function Hospital() {
   }, [user, isLoading, navigate]);
 
   if (isLoading) return (
-    <div className="flex min-h-screen items-center justify-center">
+    <div className="flex min-h-screen items-center justify-center bg-background">
       <div className="flex flex-col items-center gap-3">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
         <p className="text-sm text-muted-foreground">Loading dashboard...</p>
@@ -29,21 +29,24 @@ export default function Hospital() {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Background effects */}
+      <div className="fixed inset-0 bg-mesh pointer-events-none" />
+
       {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-border/50 bg-card/70 backdrop-blur-2xl">
+      <header className="sticky top-0 z-50 border-b border-border bg-card/80 backdrop-blur-2xl">
         <div className="container flex h-14 items-center justify-between">
           <Link to="/" className="flex items-center gap-2.5">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-accent">
-              <Heart className="h-3.5 w-3.5 text-primary-foreground" />
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg border border-primary/20 bg-primary/10">
+              <Heart className="h-3.5 w-3.5 text-primary" />
             </div>
             <span className="font-heading font-bold text-foreground">Vital Sync</span>
-            <span className="rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">Hospital</span>
+            <span className="rounded-md border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">Hospital</span>
           </Link>
           <div className="flex items-center gap-3">
             <span className="hidden text-sm text-muted-foreground md:block">{profile?.hospital_name || profile?.full_name || user.email}</span>
             {isAdmin && (
               <Link to="/admin">
-                <Button variant="ghost" size="sm" className="gap-1.5">
+                <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-foreground">
                   <Shield className="h-3.5 w-3.5" /> Admin
                 </Button>
               </Link>
@@ -55,7 +58,7 @@ export default function Hospital() {
         </div>
       </header>
 
-      <main className="container py-8">
+      <main className="container relative z-10 py-8">
         {/* Welcome header */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-1">
@@ -66,17 +69,17 @@ export default function Hospital() {
         </div>
 
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="glass-strong rounded-xl p-1">
-            <TabsTrigger value="overview" className="gap-1.5 rounded-lg data-[state=active]:shadow-sm">
+          <TabsList className="border border-border bg-card/80 backdrop-blur-xl rounded-xl p-1">
+            <TabsTrigger value="overview" className="gap-1.5 rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
               <Activity className="h-3.5 w-3.5" /> Overview
             </TabsTrigger>
-            <TabsTrigger value="updates" className="gap-1.5 rounded-lg data-[state=active]:shadow-sm">
+            <TabsTrigger value="updates" className="gap-1.5 rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
               Updates
             </TabsTrigger>
-            <TabsTrigger value="diagnostics" className="gap-1.5 rounded-lg data-[state=active]:shadow-sm">
+            <TabsTrigger value="diagnostics" className="gap-1.5 rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
               Diagnostics
             </TabsTrigger>
-            <TabsTrigger value="predict" className="gap-1.5 rounded-lg data-[state=active]:shadow-sm">
+            <TabsTrigger value="predict" className="gap-1.5 rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
               Predict
             </TabsTrigger>
           </TabsList>
