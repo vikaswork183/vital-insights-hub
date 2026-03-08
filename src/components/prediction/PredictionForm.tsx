@@ -83,7 +83,7 @@ export default function PredictionForm() {
       const response = await fetch(`http://localhost:8000/predict`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ features: values, model_version: selectedModelVersion }),
+        body: JSON.stringify({ features: values, model_version: localModelVersion }),
       });
       if (!response.ok) throw new Error('Prediction failed');
       const data = await response.json();
