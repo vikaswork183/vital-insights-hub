@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      messages: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          is_read: boolean
+          receiver_id: string | null
+          sender_id: string
+          sender_name: string
+          sender_role: string
+          subject: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          receiver_id?: string | null
+          sender_id: string
+          sender_name: string
+          sender_role?: string
+          subject: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          receiver_id?: string | null
+          sender_id?: string
+          sender_name?: string
+          sender_role?: string
+          subject?: string
+        }
+        Relationships: []
+      }
       model_versions: {
         Row: {
           accuracy: number | null
