@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import HospitalOverview from '@/components/hospital/HospitalOverview';
 import UpdateRequestsList from '@/components/hospital/UpdateRequestsList';
+import TrainAndUpload from '@/components/hospital/TrainAndUpload';
 import PredictionForm from '@/components/prediction/PredictionForm';
-import DiagnosticsView from '@/components/hospital/DiagnosticsView';
 import ICUMonitor from '@/components/hospital/ICUMonitor';
 
 export default function Hospital() {
@@ -74,8 +74,8 @@ export default function Hospital() {
             <TabsTrigger value="overview" className="gap-1.5 rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
               <Activity className="h-3.5 w-3.5" /> Overview
             </TabsTrigger>
-            <TabsTrigger value="updates" className="gap-1.5 rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
-              Updates
+            <TabsTrigger value="train-upload" className="gap-1.5 rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
+              Train & Upload
             </TabsTrigger>
             <TabsTrigger value="diagnostics" className="gap-1.5 rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
               Diagnostics
@@ -89,8 +89,8 @@ export default function Hospital() {
           </TabsList>
 
           <TabsContent value="overview" className="animate-fade-in"><HospitalOverview /></TabsContent>
-          <TabsContent value="updates" className="animate-fade-in"><UpdateRequestsList /></TabsContent>
-          <TabsContent value="diagnostics" className="animate-fade-in"><DiagnosticsView /></TabsContent>
+          <TabsContent value="train-upload" className="animate-fade-in"><TrainAndUpload /></TabsContent>
+          <TabsContent value="diagnostics" className="animate-fade-in"><UpdateRequestsList /></TabsContent>
           <TabsContent value="predict" className="animate-fade-in"><PredictionForm /></TabsContent>
           <TabsContent value="icu-monitor" className="animate-fade-in"><ICUMonitor /></TabsContent>
         </Tabs>

@@ -1,8 +1,7 @@
 import { useData } from '@/context/DataProvider';
 import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
-import { ArrowUpRight, Clock, CheckCircle, XCircle } from 'lucide-react';
-import TrainAndUpload from './TrainAndUpload';
+import { ArrowUpRight, Clock, CheckCircle, XCircle, Activity } from 'lucide-react';
 
 const statusConfig = (status: string) => {
   switch (status) {
@@ -16,15 +15,16 @@ export default function UpdateRequestsList() {
   const { updateRequests } = useData();
 
   return (
-    <div className="space-y-8">
-      {/* Train & Upload pipeline */}
-      <TrainAndUpload />
-
-      {/* Separator */}
+    <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="h-px flex-1 bg-border" />
-        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Submission History</span>
-        <div className="h-px flex-1 bg-border" />
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-primary/20 bg-primary/10">
+          <Activity className="h-5 w-5 text-primary" />
+        </div>
+        <div>
+          <h3 className="font-heading text-lg font-bold text-foreground">Submission History</h3>
+          <p className="text-sm text-muted-foreground">Track your approved and pending local model updates</p>
+        </div>
       </div>
 
       {/* Request list */}
