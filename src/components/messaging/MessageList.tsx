@@ -86,7 +86,7 @@ export default function MessageList() {
         </div>
       )}
 
-      {messages.map((msg) => {
+      {messages.slice(0, 5).map((msg) => {
         const isMine = msg.sender_id === user?.id;
         const isExpanded = expandedId === msg.id;
         const isUnread = !msg.is_read && !isMine;
