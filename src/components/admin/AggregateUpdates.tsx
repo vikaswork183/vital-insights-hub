@@ -89,17 +89,18 @@ export default function AggregateUpdates() {
       if (modelError) throw modelError;
 
       // Mark selected updates as aggregated
+      const idsToAggregate = Array.from(selectedIds);
       const { error: updateError } = await supabase
         .from('update_requests')
         .update({ status: 'aggregated' })
-        .in('id', Array.from(selectedIds));
+        .in('id', idsToAggregate);
 
       if (updateError) throw updateError;
 
       setSelectedIds(new Set());
       setDescription('');
-      await refreshUpdateRequests();
-      await refreshModelVersions();
+      // Refresh both lists to reflect changes
+      await Promise.all([refreshUpdateRequests(), refreshModelVersions()]);
       toast.success(`Model v${newVersion} created from ${selectedIds.size} hospital update${selectedIds.size > 1 ? 's' : ''}`);
     } catch (error: any) {
       toast.error(error.message || 'Aggregation failed');
