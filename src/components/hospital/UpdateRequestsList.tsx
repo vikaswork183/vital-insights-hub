@@ -40,7 +40,7 @@ export default function UpdateRequestsList() {
         </div>
       ) : (
         <div className="space-y-4">
-          {updateRequests.map((req) => {
+          {updateRequests.slice(0, 5).map((req) => {
             const config = statusConfig(req.status);
             return (
               <div key={req.id} className="rounded-2xl border border-border bg-card shadow-card card-hover overflow-hidden">
