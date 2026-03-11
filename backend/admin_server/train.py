@@ -89,10 +89,12 @@ def train_model(
     batch_size: int = 256,
     lr: float = 1e-3,
     patience: int = 15,
-    save_dir: str = 'models',
+    save_dir: str = None,
     model_version: int = 1,
 ):
     """Full training pipeline."""
+    if save_dir is None:
+        save_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models')
     os.makedirs(save_dir, exist_ok=True)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Training on: {device}")
