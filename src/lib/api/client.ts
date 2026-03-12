@@ -6,7 +6,7 @@
  */
 
 import { API_CONFIG } from './config';
-import { parseAPIError, type BackendAPIError } from './errors';
+import { parseAPIError } from './errors';
 
 export interface RequestOptions extends RequestInit {
   timeout?: number;
@@ -48,11 +48,14 @@ export async function apiRequest<T = any>(
   const { baseURL, ...fetchOptions } = options;
   const url = baseURL ? `${baseURL}${endpoint}` : endpoint;
 
+  // Don't set Content-Type for FormData — browser sets it with boundary
+  const isFormData = fetchOptions.body instanceof FormData;
+
   try {
     const response = await fetchWithTimeout(url, {
       ...fetchOptions,
       headers: {
-        'Content-Type': 'application/json',
+        ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
         ...fetchOptions.headers,
       },
     });

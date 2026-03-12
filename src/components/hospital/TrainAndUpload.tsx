@@ -47,37 +47,7 @@ function parseCSV(text: string) {
   return { headers, rows, rowCount: rows.length, colCount: headers.length };
 }
 
-// Clinical valid ranges for aggregation checks
-const CLINICAL_RANGES: Record<string, { min: number; max: number; meanLow: number; meanHigh: number; stdMax: number }> = {
-  age:              { min: 0, max: 120, meanLow: 18, meanHigh: 95, stdMax: 30 },
-  heart_rate:       { min: 30, max: 220, meanLow: 50, meanHigh: 130, stdMax: 40 },
-  systolic_bp:      { min: 50, max: 260, meanLow: 80, meanHigh: 180, stdMax: 50 },
-  diastolic_bp:     { min: 25, max: 180, meanLow: 40, meanHigh: 120, stdMax: 35 },
-  map:              { min: 30, max: 190, meanLow: 55, meanHigh: 140, stdMax: 35 },
-  respiratory_rate: { min: 6, max: 50, meanLow: 10, meanHigh: 35, stdMax: 12 },
-  spo2:             { min: 60, max: 100, meanLow: 85, meanHigh: 100, stdMax: 10 },
-  temperature:      { min: 33, max: 42, meanLow: 35.5, meanHigh: 39.5, stdMax: 2.0 },
-  gcs_total:        { min: 3, max: 15, meanLow: 5, meanHigh: 15, stdMax: 5 },
-  creatinine:       { min: 0, max: 20, meanLow: 0.3, meanHigh: 8, stdMax: 5 },
-  bun:              { min: 0, max: 150, meanLow: 5, meanHigh: 80, stdMax: 40 },
-  glucose:          { min: 20, max: 800, meanLow: 60, meanHigh: 350, stdMax: 150 },
-  wbc:              { min: 0.5, max: 80, meanLow: 3, meanHigh: 30, stdMax: 15 },
-  hemoglobin:       { min: 3, max: 22, meanLow: 6, meanHigh: 18, stdMax: 4 },
-  platelets:        { min: 5, max: 800, meanLow: 50, meanHigh: 450, stdMax: 200 },
-  lactate:          { min: 0, max: 25, meanLow: 0.5, meanHigh: 10, stdMax: 6 },
-};
-
-function computeColumnStats(values: number[]) {
-  const n = values.length;
-  if (n === 0) return { min: 0, max: 0, mean: 0, std: 0 };
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const mean = values.reduce((a, b) => a + b, 0) / n;
-  const std = Math.sqrt(values.reduce((s, v) => s + (v - mean) ** 2, 0) / n);
-  return { min, max, mean, std };
-}
-
-// Simulation functions removed - now using real backend APIs
+// Simulation functions and clinical ranges removed - now using real backend APIs
 
 export default function TrainAndUpload() {
   const { user, profile, modelVersions, refreshUpdateRequests } = useData();
@@ -89,7 +59,13 @@ export default function TrainAndUpload() {
   const [csvInfo, setCsvInfo] = useState<{ rowCount: number; colCount: number; headers: string[] } | null>(null);
   const [metrics, setMetrics] = useState<TrainingMetrics | null>(null);
   const [encLogs, setEncLogs] = useState<EncryptionLog[]>([]);
-  const [aggResult, setAggResult] = useState<ReturnType<typeof runAggregationChecks> | null>(null);
+  const [aggResult, setAggResult] = useState<{
+    trustScore: number;
+    l2Norm: number;
+    outlierPct: number;
+    checks: AggregationCheck[];
+    flaggedFeatures: string[];
+  } | null>(null);
   const [showEncLogs, setShowEncLogs] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -150,7 +126,7 @@ export default function TrainAndUpload() {
 
       const trainingResult = await trainingService.trainFromUpload(
         file,
-        modelVersion.version,
+        modelVersion.version_number.toString(),
         50 // epochs
       );
 
@@ -189,7 +165,7 @@ export default function TrainAndUpload() {
 
       // Submit encrypted update to admin server
       const submissionResult = await trainingService.submitUpdate(
-        modelVersion.version,
+        modelVersion.version_number.toString(),
         true // encrypt = true
       );
 

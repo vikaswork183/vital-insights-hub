@@ -66,7 +66,7 @@ export default function AggregateUpdates() {
       // Call backend aggregation service
       const idsToAggregate = Array.from(selectedIds);
       const { aggregation, newModel } = await aggregationService.aggregateAndFetchModel(
-        currentVersion.version.toString(),
+        currentVersion.version_number.toString(),
         idsToAggregate
       );
 
