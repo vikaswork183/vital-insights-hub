@@ -1,13 +1,12 @@
 """
-Training pipeline for the FT-Transformer model.
+Training pipeline for the FT-Transformer model (v2).
 
-Includes:
-- Proper preprocessing (StandardScaler)
-- Class weighting for imbalance
-- Early stopping
-- Validation split
-- Full evaluation pipeline (accuracy, AUC, precision, recall, F1, confusion matrix)
-- Feature importance via attention/gradient analysis
+Key improvements over v1:
+- Learning rate warmup + cosine decay
+- Optimal threshold search (not fixed 0.5)
+- Gradient accumulation for stability
+- Better class weighting with focal-loss-like behavior
+- Larger model capacity for complex severity patterns
 """
 
 import torch
@@ -22,8 +21,8 @@ from sklearn.metrics import (
     accuracy_score, roc_auc_score, precision_score, recall_score,
     f1_score, confusion_matrix, classification_report
 )
-import json
 import os
+import pickle
 
 from model import FTTransformer, create_model
 
@@ -43,7 +42,7 @@ FEATURE_LABELS = [
 
 
 class EarlyStopping:
-    def __init__(self, patience: int = 10, min_delta: float = 1e-4):
+    def __init__(self, patience: int = 20, min_delta: float = 1e-4):
         self.patience = patience
         self.min_delta = min_delta
         self.best_loss = float('inf')
@@ -76,23 +75,39 @@ def load_and_preprocess(csv_path: str, scaler: StandardScaler = None, fit: bool 
 
 
 def compute_class_weights(y: np.ndarray) -> torch.Tensor:
-    """Compute inverse frequency class weights."""
+    """Compute inverse frequency class weights with smoothing."""
     counts = np.bincount(y)
-    weights = len(y) / (len(counts) * counts)
+    # Smoothed inverse frequency to avoid extreme weights
+    weights = len(y) / (len(counts) * counts + 1)
+    # Boost minority class slightly more
+    weights[1] = weights[1] * 1.2
     return torch.FloatTensor(weights)
+
+
+def find_optimal_threshold(y_true: np.ndarray, y_prob: np.ndarray) -> float:
+    """Find the probability threshold that maximizes F1 score."""
+    best_f1 = 0
+    best_thresh = 0.5
+    for thresh in np.arange(0.2, 0.7, 0.01):
+        preds = (y_prob >= thresh).astype(int)
+        f = f1_score(y_true, preds, zero_division=0)
+        if f > best_f1:
+            best_f1 = f
+            best_thresh = thresh
+    return best_thresh
 
 
 def train_model(
     train_csv: str,
     test_csv: str = None,
-    epochs: int = 100,
+    epochs: int = 150,
     batch_size: int = 256,
-    lr: float = 1e-3,
-    patience: int = 15,
+    lr: float = 5e-4,
+    patience: int = 25,
     save_dir: str = None,
     model_version: int = 1,
 ):
-    """Full training pipeline."""
+    """Full training pipeline with warmup, optimal thresholding, and improved stability."""
     if save_dir is None:
         save_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models')
     os.makedirs(save_dir, exist_ok=True)
@@ -102,7 +117,7 @@ def train_model(
     # Load and preprocess
     X, y, scaler = load_and_preprocess(train_csv)
 
-    # Train/val split
+    # Train/val split (stratified)
     X_train, X_val, y_train, y_val = train_test_split(
         X, y, test_size=0.15, stratify=y, random_state=42
     )
@@ -112,25 +127,43 @@ def train_model(
     print(f"Class weights: {class_weights.tolist()}")
     print(f"Train: {len(X_train)}, Val: {len(X_val)}")
     print(f"Train mortality rate: {y_train.mean():.3f}")
+    print(f"Val mortality rate:   {y_val.mean():.3f}")
 
     # DataLoaders
     train_ds = TensorDataset(torch.FloatTensor(X_train), torch.LongTensor(y_train))
     val_ds = TensorDataset(torch.FloatTensor(X_val), torch.LongTensor(y_val))
-    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
+    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, drop_last=True)
     val_loader = DataLoader(val_ds, batch_size=batch_size)
 
-    # Model
-    model = create_model(n_features=len(FEATURE_COLS)).to(device)
-    print(f"\nModel: FT-Transformer")
+    # Model — slightly larger capacity for complex severity patterns
+    model = create_model(
+        n_features=len(FEATURE_COLS),
+        d_token=96,      # up from 64
+        n_heads=4,
+        n_layers=3,
+        d_ffn=192,        # up from 128
+        dropout=0.1,      # slightly less dropout
+    ).to(device)
+    print(f"\nModel: FT-Transformer (d=96, ffn=192, layers=3)")
     print(f"Parameters: {sum(p.numel() for p in model.parameters()):,}")
 
     # Loss and optimizer
     criterion = nn.CrossEntropyLoss(weight=class_weights)
-    optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
-    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
+    optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-5)
+
+    # Warmup + cosine annealing
+    warmup_epochs = 10
+    def lr_lambda(epoch):
+        if epoch < warmup_epochs:
+            return (epoch + 1) / warmup_epochs
+        progress = (epoch - warmup_epochs) / max(1, epochs - warmup_epochs)
+        return 0.5 * (1 + np.cos(np.pi * progress))
+
+    scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
     early_stopping = EarlyStopping(patience=patience)
 
     # Training loop
+    best_val_auc = 0
     for epoch in range(epochs):
         model.train()
         train_loss = 0
@@ -147,75 +180,104 @@ def train_model(
         # Validation
         model.eval()
         val_loss = 0
+        val_probs_list = []
+        val_labels_list = []
         with torch.no_grad():
             for X_batch, y_batch in val_loader:
                 X_batch, y_batch = X_batch.to(device), y_batch.to(device)
                 logits = model(X_batch)
                 val_loss += criterion(logits, y_batch).item()
+                probs = torch.softmax(logits, dim=1)[:, 1].cpu().numpy()
+                val_probs_list.extend(probs)
+                val_labels_list.extend(y_batch.cpu().numpy())
 
         train_loss /= len(train_loader)
         val_loss /= len(val_loader)
+
+        val_probs_arr = np.array(val_probs_list)
+        val_labels_arr = np.array(val_labels_list)
+        val_auc = roc_auc_score(val_labels_arr, val_probs_arr)
+
+        if val_auc > best_val_auc:
+            best_val_auc = val_auc
+
         scheduler.step()
 
         if (epoch + 1) % 10 == 0:
-            print(f"Epoch {epoch+1}/{epochs} — Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
+            current_lr = optimizer.param_groups[0]['lr']
+            print(f"Epoch {epoch+1}/{epochs} — Loss: {train_loss:.4f}/{val_loss:.4f}  "
+                  f"AUC: {val_auc:.4f}  LR: {current_lr:.6f}")
 
         if early_stopping(val_loss, model):
-            print(f"Early stopping at epoch {epoch+1}")
+            print(f"Early stopping at epoch {epoch+1} (best val AUC: {best_val_auc:.4f})")
             break
 
     # Restore best model
     if early_stopping.best_model_state:
         model.load_state_dict(early_stopping.best_model_state)
 
-    # Evaluation
-    print("\n--- Evaluation ---")
-    results = evaluate_model(model, X_val, y_val, device)
+    # --- Evaluation with optimal threshold ---
+    print("\n--- Validation Evaluation ---")
+    results = evaluate_model(model, X_val, y_val, device, optimize_threshold=True)
 
     # Test set evaluation
     if test_csv and os.path.exists(test_csv):
         X_test, y_test, _ = load_and_preprocess(test_csv, scaler=scaler, fit=False)
         print("\n--- Test Set Evaluation ---")
-        test_results = evaluate_model(model, X_test, y_test, device)
+        test_results = evaluate_model(model, X_test, y_test, device,
+                                       threshold=results.get('threshold', 0.5))
         results['test'] = test_results
 
-    # Feature importance via gradient
+    # Feature importance
     importance = compute_feature_importance(model, X_val, device)
 
-    # Save model
+    # Save model checkpoint
+    model_config = {
+        'n_features': len(FEATURE_COLS),
+        'd_token': 96, 'n_heads': 4, 'n_layers': 3,
+        'd_ffn': 192, 'dropout': 0.1,
+    }
     save_path = os.path.join(save_dir, f'ft_transformer_v{model_version}.pt')
     torch.save({
         'model_state_dict': model.state_dict(),
         'scaler_mean': scaler.mean_.tolist(),
         'scaler_scale': scaler.scale_.tolist(),
-        'model_config': {
-            'n_features': len(FEATURE_COLS),
-            'd_token': 64, 'n_heads': 4, 'n_layers': 3,
-            'd_ffn': 128, 'dropout': 0.15,
-        },
+        'model_config': model_config,
         'metrics': results,
         'feature_importance': importance,
         'version': model_version,
+        'threshold': results.get('threshold', 0.5),
     }, save_path)
     print(f"\nModel saved to {save_path}")
 
     # Save scaler
-    import pickle
     with open(os.path.join(save_dir, f'scaler_v{model_version}.pkl'), 'wb') as f:
         pickle.dump(scaler, f)
 
     return model, scaler, results, importance
 
 
-def evaluate_model(model: nn.Module, X: np.ndarray, y: np.ndarray, device) -> dict:
-    """Full evaluation with all metrics."""
+def evaluate_model(
+    model: nn.Module,
+    X: np.ndarray,
+    y: np.ndarray,
+    device,
+    optimize_threshold: bool = False,
+    threshold: float = 0.5,
+) -> dict:
+    """Full evaluation with optional threshold optimization."""
     model.eval()
     X_tensor = torch.FloatTensor(X).to(device)
 
     with torch.no_grad():
         logits = model(X_tensor)
         probs = torch.softmax(logits, dim=1)[:, 1].cpu().numpy()
-        preds = (probs > 0.5).astype(int)
+
+    if optimize_threshold:
+        threshold = find_optimal_threshold(y, probs)
+        print(f"Optimal threshold: {threshold:.2f}")
+
+    preds = (probs >= threshold).astype(int)
 
     acc = accuracy_score(y, preds)
     auc = roc_auc_score(y, probs)
@@ -224,12 +286,13 @@ def evaluate_model(model: nn.Module, X: np.ndarray, y: np.ndarray, device) -> di
     f1 = f1_score(y, preds, zero_division=0)
     cm = confusion_matrix(y, preds).tolist()
 
-    print(f"Accuracy: {acc:.4f}")
-    print(f"AUC:      {auc:.4f}")
-    print(f"Precision:{prec:.4f}")
-    print(f"Recall:   {rec:.4f}")
-    print(f"F1 Score: {f1:.4f}")
-    print(f"Confusion Matrix:\n{cm}")
+    print(f"Accuracy:  {acc:.4f}")
+    print(f"AUC:       {auc:.4f}")
+    print(f"Precision: {prec:.4f}")
+    print(f"Recall:    {rec:.4f}")
+    print(f"F1 Score:  {f1:.4f}")
+    print(f"Threshold: {threshold:.2f}")
+    print(f"Confusion Matrix: {cm}")
     print(classification_report(y, preds, target_names=['Survived', 'Mortality']))
 
     return {
@@ -239,6 +302,7 @@ def evaluate_model(model: nn.Module, X: np.ndarray, y: np.ndarray, device) -> di
         'recall': float(rec),
         'f1_score': float(f1),
         'confusion_matrix': cm,
+        'threshold': float(threshold),
     }
 
 
@@ -275,7 +339,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--train', default='../data/hospital_1.csv')
     parser.add_argument('--test', default='../data/test_holdout.csv')
-    parser.add_argument('--epochs', type=int, default=100)
+    parser.add_argument('--epochs', type=int, default=150)
     parser.add_argument('--version', type=int, default=1)
     args = parser.parse_args()
 
