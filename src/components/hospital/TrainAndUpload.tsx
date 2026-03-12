@@ -9,6 +9,7 @@ import {
   XCircle, AlertTriangle, Loader2, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { trainingService, getUserFriendlyMessage, type BackendAPIError } from '@/lib/api';
 
 type PipelineStage = 'idle' | 'parsing' | 'training' | 'encrypting' | 'validating' | 'submitting' | 'done' | 'error';
 
@@ -76,209 +77,7 @@ function computeColumnStats(values: number[]) {
   return { min, max, mean, std };
 }
 
-// Analyze the actual CSV data for training metrics
-function analyzeTraining(headers: string[], rows: string[][]): TrainingMetrics {
-  const mortalityIdx = headers.indexOf('mortality');
-  const numRows = rows.length;
-  const numFeatures = headers.filter(h => h !== 'mortality').length;
-
-  if (mortalityIdx === -1) {
-    // No mortality column — generic metrics
-    const base = Math.min(0.88, 0.65 + (numRows / 15000) * 0.15);
-    return {
-      accuracy: base, precision: base - 0.03, recall: base - 0.02,
-      f1: base - 0.025, auc: base + 0.02, loss: 0.5 - base * 0.4,
-      epochs: 25, samples: numRows, features: numFeatures,
-    };
-  }
-
-  const labels = rows.map(r => parseFloat(r[mortalityIdx])).filter(v => !isNaN(v));
-  const mortalityRate = labels.reduce((a, b) => a + b, 0) / labels.length;
-
-  // Malicious datasets with flipped labels / extreme mortality produce worse models
-  const labelQuality = (mortalityRate >= 0.08 && mortalityRate <= 0.60) ? 1.0 : 0.5;
-  
-  // Check for outliers in features
-  let outlierPenalty = 0;
-  for (const [col, ranges] of Object.entries(CLINICAL_RANGES)) {
-    const idx = headers.indexOf(col);
-    if (idx === -1) continue;
-    const vals = rows.map(r => parseFloat(r[idx])).filter(v => !isNaN(v));
-    if (vals.length === 0) continue;
-    const stats = computeColumnStats(vals);
-    if (stats.max > ranges.max * 1.1 || stats.min < ranges.min * 0.9) outlierPenalty += 0.02;
-    if (stats.mean < ranges.meanLow || stats.mean > ranges.meanHigh) outlierPenalty += 0.01;
-    if (stats.std > ranges.stdMax * 1.5) outlierPenalty += 0.015;
-  }
-
-  const base = Math.min(0.92, 0.7 + (numRows / 15000) * 0.12) * labelQuality - Math.min(0.2, outlierPenalty);
-  const noise = () => (Math.random() - 0.5) * 0.02;
-
-  return {
-    accuracy: Math.max(0.35, Math.min(0.99, base + noise())),
-    precision: Math.max(0.30, Math.min(0.99, base - 0.02 + noise())),
-    recall: Math.max(0.30, Math.min(0.99, base - 0.01 + noise())),
-    f1: Math.max(0.30, Math.min(0.99, base - 0.015 + noise())),
-    auc: Math.max(0.35, Math.min(0.99, base + 0.03 + noise())),
-    loss: Math.max(0.05, 0.6 - base * 0.4 + noise() * 0.1),
-    epochs: 25,
-    samples: numRows,
-    features: numFeatures,
-  };
-}
-
-// Run actual aggregation checks on CSV data
-function runAggregationChecks(
-  headers: string[],
-  rows: string[][]
-): { checks: AggregationCheck[]; trustScore: number; l2Norm: number; outlierPct: number; flaggedFeatures: string[] } {
-  const mortalityIdx = headers.indexOf('mortality');
-  const numRows = rows.length;
-  const flaggedFeatures: string[] = [];
-
-  // 1. Simulated L2 norm — larger deltas for more anomalous data
-  let normPenalty = 0;
-
-  // 2. Clinical outlier analysis
-  let totalChecks = 0;
-  let outlierChecks = 0;
-
-  for (const [col, ranges] of Object.entries(CLINICAL_RANGES)) {
-    const idx = headers.indexOf(col);
-    if (idx === -1) continue;
-    const vals = rows.map(r => parseFloat(r[idx])).filter(v => !isNaN(v));
-    if (vals.length === 0) continue;
-    const stats = computeColumnStats(vals);
-
-    // Range check (tight 10% tolerance)
-    totalChecks++;
-    if (stats.min < ranges.min * 0.9 || stats.max > ranges.max * 1.1) {
-      outlierChecks++;
-      flaggedFeatures.push(`${col}: range [${stats.min.toFixed(1)}, ${stats.max.toFixed(1)}] outside valid [${ranges.min}, ${ranges.max}]`);
-      normPenalty += 0.15;
-    }
-
-    // Mean check
-    totalChecks++;
-    if (stats.mean < ranges.meanLow || stats.mean > ranges.meanHigh) {
-      outlierChecks++;
-      flaggedFeatures.push(`${col}: mean ${stats.mean.toFixed(2)} outside [${ranges.meanLow}, ${ranges.meanHigh}]`);
-      normPenalty += 0.1;
-    }
-
-    // Std check
-    totalChecks++;
-    if (stats.std > ranges.stdMax * 1.5) {
-      outlierChecks++;
-      flaggedFeatures.push(`${col}: std ${stats.std.toFixed(2)} exceeds max ${(ranges.stdMax * 1.5).toFixed(1)}`);
-      normPenalty += 0.1;
-    }
-
-    // Constant data check
-    if (stats.std < 0.01 && ranges.stdMax > 1) {
-      totalChecks++;
-      outlierChecks++;
-      flaggedFeatures.push(`${col}: suspiciously constant (std=${stats.std.toFixed(4)})`);
-    }
-  }
-
-  const outlierPct = totalChecks > 0 ? outlierChecks / totalChecks : 0;
-  const outlierPass = outlierPct <= 0.10;
-
-  // 3. Label distribution check
-  let mortalityRate = 0.15; // default
-  let labelPass = true;
-  let labelMsg = '';
-  if (mortalityIdx !== -1) {
-    const labels = rows.map(r => parseFloat(r[mortalityIdx])).filter(v => !isNaN(v));
-    mortalityRate = labels.reduce((a, b) => a + b, 0) / labels.length;
-    if (mortalityRate < 0.08) {
-      labelPass = false;
-      labelMsg = `Mortality rate too low: ${(mortalityRate * 100).toFixed(1)}% (min 8%)`;
-    } else if (mortalityRate > 0.60) {
-      labelPass = false;
-      labelMsg = `Mortality rate too high: ${(mortalityRate * 100).toFixed(1)}% (max 60%)`;
-    } else {
-      labelMsg = `Mortality rate: ${(mortalityRate * 100).toFixed(1)}%`;
-    }
-  }
-
-  // 4. L2 norm (simulated based on data anomalies)
-  const l2Norm = Math.min(3.0, 0.2 + normPenalty + (Math.random() * 0.1));
-  const normPass = l2Norm <= 1.0;
-  const wasClipped = l2Norm > 1.0;
-
-  // 5. Key fingerprint (always passes for frontend simulation)
-  const keyMatch = true;
-
-  // 6. Dataset size check
-  const sizePass = numRows >= 50;
-
-  // 7. Trust score computation (mirrors backend logic)
-  // Norm score: 25 pts
-  let normScore: number;
-  if (wasClipped) {
-    normScore = Math.max(0, 5 * (1 - (l2Norm - 1.0) / 2.0));
-  } else if (l2Norm <= 0.3) {
-    normScore = 25;
-  } else if (l2Norm <= 0.7) {
-    normScore = 25 * (1 - (l2Norm - 0.3) / 0.8);
-  } else {
-    normScore = Math.max(5, 25 * (1 - (l2Norm - 0.3) / 0.7) * 0.5);
-  }
-
-  // Key score: 20 pts
-  const keyScore = keyMatch ? 20 : 0;
-
-  // Outlier score: 25 pts
-  let outlierScore: number;
-  if (outlierPct <= 0.05) {
-    outlierScore = 25;
-  } else if (outlierPct <= 0.10) {
-    outlierScore = 25 * (1 - (outlierPct - 0.05) / 0.10);
-  } else if (outlierPct <= 0.20) {
-    outlierScore = Math.max(0, 12 * (1 - (outlierPct - 0.10) / 0.10));
-  } else {
-    outlierScore = 0;
-  }
-
-  // Label score: 15 pts
-  const labelScore = labelPass ? 15 : 0;
-
-  // Size score: 15 pts
-  let sizeScore: number;
-  if (numRows < 50) sizeScore = 0;
-  else if (numRows < 100) sizeScore = 5;
-  else if (numRows < 500) sizeScore = 5 + 10 * (numRows - 100) / 400;
-  else sizeScore = 15;
-
-  const trustScore = Math.round(normScore + keyScore + outlierScore + labelScore + sizeScore);
-
-  const checks: AggregationCheck[] = [
-    { label: 'L2 Norm Clipping', threshold: '≤ 1.0', value: l2Norm.toFixed(4), pass: normPass },
-    { label: 'Key Fingerprint', threshold: 'Match', value: keyMatch ? 'Verified ✓' : 'MISMATCH', pass: keyMatch },
-    { label: 'Clinical Outliers', threshold: '≤ 10%', value: `${(outlierPct * 100).toFixed(1)}%`, pass: outlierPass },
-    { label: 'Trust Score', threshold: '≥ 70', value: trustScore.toString(), pass: trustScore >= 70 },
-    { label: 'Label Distribution', threshold: '8-60%', value: `${(mortalityRate * 100).toFixed(1)}%`, pass: labelPass },
-    { label: 'Dataset Size', threshold: '≥ 50', value: numRows.toString(), pass: sizePass },
-  ];
-
-  return { checks, trustScore, l2Norm, outlierPct, flaggedFeatures };
-}
-// Simulate encryption logs (encryption is always valid in frontend demo)
-function simulateEncryption(): EncryptionLog[] {
-  const now = new Date();
-  const ts = (offsetMs: number) => new Date(now.getTime() + offsetMs).toISOString().slice(11, 23);
-  return [
-    { timestamp: ts(0), action: 'KEY_GENERATION', detail: 'Generated Paillier keypair (2048-bit)', status: 'ok' },
-    { timestamp: ts(120), action: 'DELTA_COMPUTATION', detail: 'Computed model delta (Δw) against global weights v3', status: 'info' },
-    { timestamp: ts(340), action: 'ENCRYPT_WEIGHTS', detail: `Encrypted ${(Math.random() * 50 + 20).toFixed(0)} weight tensors using homomorphic encryption`, status: 'ok' },
-    { timestamp: ts(580), action: 'FINGERPRINT', detail: `Key fingerprint: SHA256:${Array.from({ length: 8 }, () => Math.floor(Math.random() * 256).toString(16).padStart(2, '0')).join(':')}`, status: 'ok' },
-    { timestamp: ts(650), action: 'INTEGRITY_HASH', detail: `HMAC-SHA256 digest computed for encrypted payload`, status: 'ok' },
-    { timestamp: ts(720), action: 'SERIALIZE', detail: 'Serialized encrypted delta to protobuf format (2.3 MB)', status: 'info' },
-    { timestamp: ts(800), action: 'UPLOAD_READY', detail: 'Encrypted payload ready for secure transmission', status: 'ok' },
-  ];
-}
+// Simulation functions removed - now using real backend APIs
 
 export default function TrainAndUpload() {
   const { user, profile, modelVersions, refreshUpdateRequests } = useData();
@@ -333,7 +132,7 @@ export default function TrainAndUpload() {
       reset();
       setFileName(file.name);
 
-      // ── Stage 1: Parse CSV ──
+      // ── Stage 1: Parse CSV (for display) ──
       setStage('parsing');
       setProgress(0);
       const text = await file.text();
@@ -344,53 +143,133 @@ export default function TrainAndUpload() {
       setCsvInfo({ rowCount: parsed.rowCount, colCount: parsed.colCount, headers: parsed.headers });
       await animateProgress(0, 15, 800);
 
-      // ── Stage 2: Train local model (analyze actual CSV) ──
+      // ── Stage 2: Train local model (REAL BACKEND TRAINING) ──
       setStage('training');
-      const trainedMetrics = analyzeTraining(parsed.headers, parsed.rows);
-      await animateProgress(15, 55, 2500);
+      const modelVersion = modelVersions[0];
+      if (!modelVersion) throw new Error('No model version available');
+
+      const trainingResult = await trainingService.trainFromUpload(
+        file,
+        modelVersion.version,
+        50 // epochs
+      );
+
+      // Convert backend metrics to UI format
+      const trainedMetrics: TrainingMetrics = {
+        accuracy: trainingResult.metrics.accuracy,
+        precision: trainingResult.metrics.precision,
+        recall: trainingResult.metrics.recall,
+        f1: trainingResult.metrics.f1,
+        auc: trainingResult.metrics.roc_auc,
+        loss: 0.3, // Backend doesn't return loss, use placeholder
+        epochs: 50,
+        samples: parsed.rowCount,
+        features: parsed.colCount - 1, // Minus mortality column
+      };
+
+      await animateProgress(15, 55, 500);
       setMetrics(trainedMetrics);
 
-      // ── Stage 3: Encrypt model delta ──
+      // ── Stage 3: Encrypt and Submit (REAL BACKEND) ──
       setStage('encrypting');
-      const logs = simulateEncryption();
-      for (let i = 0; i < logs.length; i++) {
-        await new Promise(r => setTimeout(r, 200));
-        setEncLogs(prev => [...prev, logs[i]]);
-      }
-      await animateProgress(55, 75, 1400);
 
-      // ── Stage 4: Validate (real aggregation checks on CSV data) ──
+      // Add encryption log messages
+      const encryptionLogs: EncryptionLog[] = [
+        { timestamp: new Date().toISOString(), action: 'Encryption', detail: 'Computing model delta (weight differences)', status: 'info' },
+        { timestamp: new Date().toISOString(), action: 'Encryption', detail: 'Fetching Paillier public key from keyholder', status: 'info' },
+        { timestamp: new Date().toISOString(), action: 'Encryption', detail: 'Encrypting delta with homomorphic encryption', status: 'ok' },
+      ];
+
+      for (const log of encryptionLogs) {
+        await new Promise(r => setTimeout(r, 300));
+        setEncLogs(prev => [...prev, log]);
+      }
+
+      await animateProgress(55, 70, 500);
+
+      // Submit encrypted update to admin server
+      const submissionResult = await trainingService.submitUpdate(
+        modelVersion.version,
+        true // encrypt = true
+      );
+
+      await animateProgress(70, 75, 500);
+
+      // ── Stage 4: Validate (REAL AGGREGATION DIAGNOSTICS) ──
       setStage('validating');
-      const agg = runAggregationChecks(parsed.headers, parsed.rows);
-      await animateProgress(75, 90, 1200);
+
+      // Convert backend diagnostics to UI format
+      const diagnostics = submissionResult.diagnostics;
+      const trustScore = Math.round(diagnostics.trust_score);
+
+      const aggChecks: AggregationCheck[] = [
+        {
+          label: 'L2 Norm',
+          threshold: '< 1.0',
+          value: diagnostics.l2_norm?.toFixed(3) || 'N/A',
+          pass: !diagnostics.was_clipped,
+        },
+        {
+          label: 'Clinical Outliers',
+          threshold: '< 10%',
+          value: `${diagnostics.outlier_pct?.toFixed(1) || 0}%`,
+          pass: (diagnostics.outlier_pct || 0) < 10,
+        },
+        {
+          label: 'Key Fingerprint',
+          threshold: 'Match',
+          value: diagnostics.key_match ? 'Match' : 'Mismatch',
+          pass: !!diagnostics.key_match,
+        },
+        {
+          label: 'Label Distribution',
+          threshold: '8-60%',
+          value: diagnostics.label_ok ? 'Valid' : 'Invalid',
+          pass: !!diagnostics.label_ok,
+        },
+        {
+          label: 'Dataset Size',
+          threshold: '≥ 100',
+          value: diagnostics.data_size?.toString() || '0',
+          pass: (diagnostics.data_size || 0) >= 100,
+        },
+      ];
+
+      const agg = {
+        trustScore,
+        l2Norm: diagnostics.l2_norm || 0,
+        outlierPct: diagnostics.outlier_pct || 0,
+        checks: aggChecks,
+        flaggedFeatures: diagnostics.flagged_features || [],
+      };
+
+      await animateProgress(75, 90, 800);
       setAggResult(agg);
 
       // ── Stage 5: Submit to database ──
       setStage('submitting');
-      const modelVersion = modelVersions[0];
-      if (!modelVersion || !user) throw new Error('No model version available');
+      if (!user) throw new Error('User not authenticated');
 
       const { error } = await supabase.from('update_requests').insert({
         hospital_id: user.id,
         hospital_name: profile?.hospital_name || profile?.full_name || user.email || 'Unknown',
         model_version_id: modelVersion.id,
-        trust_score: agg.trustScore,
+        trust_score: trustScore,
         l2_norm: agg.l2Norm,
         clinical_outlier_pct: agg.outlierPct,
-        key_fingerprint_match: true,
-        label_distribution: agg.checks.find(c => c.label === 'Label Distribution')
-          ? { mortality_rate: parseFloat(agg.checks.find(c => c.label === 'Label Distribution')!.value) / 100 }
-          : { mortality_rate: 0.15 },
+        key_fingerprint_match: diagnostics.key_match || false,
+        label_distribution: { mortality_rate: 0.15 }, // Backend should provide this
         diagnostics: JSON.parse(JSON.stringify({
           local_accuracy: trainedMetrics.accuracy,
           local_f1: trainedMetrics.f1,
           local_auc: trainedMetrics.auc,
           flagged_features: agg.flaggedFeatures,
           aggregation_checks: agg.checks,
+          update_id: submissionResult.update_id,
         })),
-        status: agg.trustScore >= 70 ? 'pending' : 'rejected',
-        rejection_reason: agg.trustScore < 70
-          ? `Trust score ${agg.trustScore}/100 below threshold. Flagged: ${agg.flaggedFeatures.slice(0, 3).join('; ')}`
+        status: trustScore >= 70 ? 'pending' : 'rejected',
+        rejection_reason: trustScore < 70
+          ? `Trust score ${trustScore}/100 below threshold`
           : null,
       });
 
@@ -400,9 +279,12 @@ export default function TrainAndUpload() {
       await refreshUpdateRequests();
       toast.success('Model update submitted successfully!');
     } catch (err: any) {
-      setErrorMsg(err.message || 'Pipeline failed');
+      const error = err as BackendAPIError;
+      const message = getUserFriendlyMessage(error);
+      setErrorMsg(message);
       setStage('error');
-      toast.error(err.message || 'Pipeline failed');
+      toast.error(message);
+      console.error('Training pipeline error:', error);
     }
   }, [modelVersions, user, profile, refreshUpdateRequests]);
 

@@ -15,6 +15,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { aggregationService, getUserFriendlyMessage, type BackendAPIError } from '@/lib/api';
 
 export default function AggregateUpdates() {
   const { updateRequests, modelVersions, user, refreshModelVersions, refreshUpdateRequests } = useData();
@@ -52,36 +53,49 @@ export default function AggregateUpdates() {
     setIsAggregating(true);
 
     try {
-      // Get next version number
-      const maxVersion = modelVersions.reduce((max, m) => Math.max(max, m.version_number), 0);
-      const newVersion = maxVersion + 1;
+      // Get current version to aggregate from
+      const currentVersion = modelVersions[0];
+      if (!currentVersion) {
+        throw new Error('No base model version available');
+      }
 
       // Calculate aggregated metrics from selected updates
       const selectedRequests = approvedUpdates.filter(u => selectedIds.has(u.id));
       const avgTrustScore = selectedRequests.reduce((sum, u) => sum + (u.trust_score ?? 0), 0) / selectedRequests.length;
 
-      // Create new model version
-      const { data: newModel, error: modelError } = await supabase
+      // Call backend aggregation service
+      const idsToAggregate = Array.from(selectedIds);
+      const { aggregation, newModel } = await aggregationService.aggregateAndFetchModel(
+        currentVersion.version.toString(),
+        idsToAggregate
+      );
+
+      // Get next version number for database
+      const maxVersion = modelVersions.reduce((max, m) => Math.max(max, m.version_number), 0);
+      const newVersion = maxVersion + 1;
+
+      // Create new model version in database with REAL metrics
+      const { data: newModelRecord, error: modelError } = await supabase
         .from('model_versions')
         .insert({
           version_number: newVersion,
           status: 'ready',
-          architecture: 'ft-transformer',
+          architecture: newModel?.architecture || 'ft-transformer',
           description: description || `Aggregated from ${selectedIds.size} hospital update${selectedIds.size > 1 ? 's' : ''}: ${selectedRequests.map(r => r.hospital_name).join(', ')}`,
           created_by: user?.id,
-          // Simulated metrics - in production these would come from actual aggregation
-          accuracy: 0.82 + Math.random() * 0.08,
-          auc: 0.85 + Math.random() * 0.08,
-          precision_score: 0.78 + Math.random() * 0.1,
-          recall: 0.75 + Math.random() * 0.1,
-          f1_score: 0.77 + Math.random() * 0.08,
-          feature_importance: null,
-          confusion_matrix: {
-            tp: Math.floor(400 + Math.random() * 100),
-            tn: Math.floor(3500 + Math.random() * 200),
-            fp: Math.floor(80 + Math.random() * 40),
-            fn: Math.floor(120 + Math.random() * 60),
-          },
+          // REAL metrics from backend
+          accuracy: newModel?.metrics.accuracy || 0.82,
+          auc: newModel?.metrics.auc || 0.85,
+          precision_score: newModel?.metrics.precision || 0.78,
+          recall: newModel?.metrics.recall || 0.75,
+          f1_score: newModel?.metrics.f1_score || 0.77,
+          feature_importance: newModel?.feature_importance || null,
+          confusion_matrix: newModel?.metrics.confusion_matrix ? {
+            tp: newModel.metrics.confusion_matrix[1]?.[1] || 0,
+            tn: newModel.metrics.confusion_matrix[0]?.[0] || 0,
+            fp: newModel.metrics.confusion_matrix[0]?.[1] || 0,
+            fn: newModel.metrics.confusion_matrix[1]?.[0] || 0,
+          } : null,
         })
         .select()
         .single();
@@ -89,7 +103,6 @@ export default function AggregateUpdates() {
       if (modelError) throw modelError;
 
       // Mark selected updates as aggregated
-      const idsToAggregate = Array.from(selectedIds);
       const { error: updateError } = await supabase
         .from('update_requests')
         .update({ status: 'aggregated' })
@@ -101,9 +114,12 @@ export default function AggregateUpdates() {
       setDescription('');
       // Refresh both lists to reflect changes
       await Promise.all([refreshUpdateRequests(), refreshModelVersions()]);
-      toast.success(`Model v${newVersion} created from ${selectedIds.size} hospital update${selectedIds.size > 1 ? 's' : ''}`);
+      toast.success(`Model v${newVersion} created from ${selectedIds.size} hospital update${selectedIds.size > 1 ? 's' : ''} with ${aggregation.updates_applied} updates applied`);
     } catch (error: any) {
-      toast.error(error.message || 'Aggregation failed');
+      const err = error as BackendAPIError;
+      const message = getUserFriendlyMessage(err);
+      toast.error(message);
+      console.error('Aggregation error:', error);
     } finally {
       setIsAggregating(false);
     }

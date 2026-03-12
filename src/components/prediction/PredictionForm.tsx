@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useData } from '@/context/DataProvider';
 import { Loader2, AlertTriangle, CheckCircle, ClipboardPaste, RotateCcw, Brain } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { predictionService, getUserFriendlyMessage, type BackendAPIError } from '@/lib/api';
 
 const FEATURES = [
   { key: 'age', label: 'Age (years)', min: 0, max: 120, defaultVal: 65 },
@@ -79,25 +80,27 @@ export default function PredictionForm() {
 
   const handlePredict = async () => {
     setLoading(true);
+    setResult(null);
+
     try {
-      const response = await fetch(`http://localhost:8000/predict`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ features: values, model_version: localModelVersion }),
+      const prediction = await predictionService.predict(values, localModelVersion);
+      setResult(prediction);
+
+      toast({
+        title: 'Prediction Complete',
+        description: `Mortality probability: ${(prediction.mortality_probability * 100).toFixed(1)}%`,
       });
-      if (!response.ok) throw new Error('Prediction failed');
-      const data = await response.json();
-      setResult(data);
     } catch (err: any) {
-      console.warn('Could not reach backend, using simulated prediction.');
-      const simProb = simulatePrediction(values);
-      setResult({
-        mortality_probability: simProb,
-        risk_category: simProb > 0.7 ? 'High Risk' : simProb > 0.3 ? 'Moderate Risk' : 'Low Risk',
-        feature_contributions: Object.fromEntries(
-          FEATURES.slice(0, 10).map(f => [f.label, Math.random() * 0.2 - 0.1])
-        ),
+      const error = err as BackendAPIError;
+      const message = getUserFriendlyMessage(error);
+
+      toast({
+        title: 'Prediction Failed',
+        description: message,
+        variant: 'destructive',
       });
+
+      console.error('Prediction error:', error);
     } finally {
       setLoading(false);
     }
@@ -246,14 +249,3 @@ export default function PredictionForm() {
   );
 }
 
-function simulatePrediction(values: Record<string, number>): number {
-  let risk = 0.15;
-  if (values.age > 70) risk += 0.15;
-  if (values.gcs_total < 8) risk += 0.25;
-  if (values.lactate > 4) risk += 0.2;
-  if (values.spo2 < 90) risk += 0.15;
-  if (values.map < 65) risk += 0.15;
-  if (values.heart_rate > 120) risk += 0.1;
-  if (values.creatinine > 3) risk += 0.1;
-  return Math.min(0.95, Math.max(0.05, risk + (Math.random() * 0.1 - 0.05)));
-}

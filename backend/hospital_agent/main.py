@@ -176,6 +176,65 @@ def train_local(req: TrainRequest):
     }
 
 
+@app.post("/train_from_upload")
+async def train_from_upload(
+    file: UploadFile = File(...),
+    model_version: str = "1",
+    epochs: int = 50
+):
+    """Train the model on uploaded CSV data."""
+    global current_model, initial_params, last_trained_csv
+
+    # Save uploaded file temporarily
+    temp_dir = "temp_uploads"
+    os.makedirs(temp_dir, exist_ok=True)
+    temp_path = os.path.join(temp_dir, f"{HOSPITAL_ID}_{file.filename}")
+
+    try:
+        # Save file
+        contents = await file.read()
+        with open(temp_path, "wb") as f:
+            f.write(contents)
+
+        # Train using the temporary file
+        last_trained_csv = temp_path
+
+        # Save initial params before training
+        model = create_model(n_features=len(FEATURE_COLS))
+
+        # Try to load existing global model
+        model_path = f"models/ft_transformer_v{model_version}.pt"
+        if os.path.exists(model_path):
+            checkpoint = torch.load(model_path, map_location='cpu', weights_only=False)
+            model.load_state_dict(checkpoint['model_state_dict'])
+            print(f"Loaded global model v{model_version}")
+
+        initial_params = model.get_last_layer_params()
+
+        # Train locally
+        trained_model, scaler, results, importance = train_model(
+            train_csv=temp_path,
+            epochs=epochs,
+            model_version=int(model_version),
+        )
+        current_model = trained_model
+
+        return {
+            "status": "trained",
+            "hospital": HOSPITAL_NAME,
+            "metrics": results,
+            "feature_importance": importance,
+        }
+
+    except Exception as e:
+        # Clean up temp file on error
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+        raise HTTPException(500, f"Training failed: {str(e)}")
+
+    # Note: temp file is kept for delta computation in submit_update
+
+
 @app.post("/submit_update")
 def submit_update(req: SubmitRequest):
     """Compute delta, encrypt, and submit to admin server."""
