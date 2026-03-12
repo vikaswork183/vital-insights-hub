@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
-One-shot script: Generate dataset → Train base FT-Transformer v1 → Save to admin_server/models/
-Then automatically update the model_versions table in Supabase with real metrics.
+One-shot: Generate dataset → Train FT-Transformer v1 → Save to data.db + .pt
 
 Usage:
     cd backend
@@ -9,23 +8,19 @@ Usage:
     pip install supabase
     python generate_base_model.py
 
-This will:
-1. Generate 50K training + 10K test synthetic ICU data
-2. Train the FT-Transformer model
-3. Save ft_transformer_v1.pt to admin_server/models/
-4. Update model_versions table with real training metrics
+Target: ~82-85% accuracy / AUC on severity-based synthetic ICU data.
 """
 
 import sys
 import os
 import json
 
-# Add paths
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'dataset_generator'))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'admin_server'))
 
 from generate_base_model_data import generate_base_model_dataset
 from train import train_model
+from db_store import ModelStore
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), 'dataset_generator', 'data', 'data')
 MODEL_DIR = os.path.join(os.path.dirname(__file__), 'admin_server', 'models')
@@ -60,17 +55,15 @@ def sync_metrics_to_supabase(version: int, results: dict, importance: list, mode
         'status': 'active',
     }
 
-    # Try update first, then upsert
     resp = sb.table('model_versions').update(row).eq('version_number', version).execute()
     if resp.data:
         print(f"  ✓ model_versions v{version} updated with real metrics.")
         return True
 
-    # Insert if no existing row
     row.update({
         'version_number': version,
         'architecture': 'ft-transformer',
-        'description': f'Base global model v{version} — real training metrics',
+        'description': f'Base global model v{version} — severity-based training',
     })
     sb.table('model_versions').insert(row).execute()
     print(f"  ✓ model_versions v{version} inserted with real metrics.")
@@ -79,11 +72,12 @@ def sync_metrics_to_supabase(version: int, results: dict, importance: list, mode
 
 def main():
     print("=" * 60)
-    print("  VITAL SYNC — Base Global Model Generator")
+    print("  VITAL SYNC — Base Global Model Generator v2")
+    print("  Target: ~82-85% accuracy via severity-based data")
     print("=" * 60)
 
-    # Step 1: Generate dataset
-    print("\n[1/3] Generating synthetic ICU dataset (50K train + 10K test)...")
+    # Step 1: Generate improved dataset
+    print("\n[1/4] Generating severity-based ICU dataset...")
     generate_base_model_dataset(output_dir=DATA_DIR)
 
     train_csv = os.path.join(DATA_DIR, 'base_model_50k.csv')
@@ -93,22 +87,48 @@ def main():
         print(f"ERROR: Training data not found at {train_csv}")
         sys.exit(1)
 
-    # Step 2: Train model
-    print(f"\n[2/3] Training FT-Transformer v1...")
+    # Step 2: Train model with improved pipeline
+    print(f"\n[2/4] Training FT-Transformer v1 (d=96, ffn=192, 150 epochs max)...")
     model, scaler, results, importance = train_model(
         train_csv=train_csv,
         test_csv=test_csv,
-        epochs=100,
+        epochs=150,
         batch_size=256,
-        lr=1e-3,
-        patience=15,
+        lr=5e-4,
+        patience=25,
         save_dir=MODEL_DIR,
         model_version=1,
     )
 
-    # Step 3: Sync to database
+    # Step 3: Store in data.db
+    print(f"\n[3/4] Storing model in data.db...")
+    store = ModelStore()
+    store.save_model(
+        version=1,
+        model_state_dict=model.state_dict(),
+        scaler=scaler,
+        model_config={
+            'n_features': 20,
+            'd_token': 96, 'n_heads': 4, 'n_layers': 3,
+            'd_ffn': 192, 'dropout': 0.1,
+        },
+        metrics=results,
+        total_samples=50000,
+        n_updates=0,
+        threshold=results.get('threshold', 0.5),
+        feature_importance=importance,
+    )
+
+    # Verify data.db
+    loaded = store.load_model(1)
+    if loaded:
+        print(f"  ✓ Verified: model v1 loadable from data.db")
+    else:
+        print(f"  ✗ ERROR: Could not load model from data.db!")
+
+    # Step 4: Sync to Supabase
     model_path = os.path.join(MODEL_DIR, 'ft_transformer_v1.pt')
-    print(f"\n[3/3] Syncing metrics to database...")
+    print(f"\n[4/4] Syncing metrics to Supabase...")
     sync_metrics_to_supabase(
         version=1,
         results=results,
@@ -120,15 +140,19 @@ def main():
     print("\n" + "=" * 60)
     print("  BASE MODEL GENERATION COMPLETE")
     print("=" * 60)
-    print(f"  Model saved:  {model_path}")
-    print(f"  Exists:       {os.path.exists(model_path)}")
+    print(f"  .pt file:     {model_path}")
+    print(f"  data.db:      {store.db_path}")
     if os.path.exists(model_path):
         size_mb = os.path.getsize(model_path) / (1024 * 1024)
-        print(f"  Size:         {size_mb:.2f} MB")
-    print(f"  Accuracy:     {results.get('accuracy', 'N/A')}")
+        print(f"  .pt size:     {size_mb:.2f} MB")
+    if os.path.exists(store.db_path):
+        size_mb = os.path.getsize(store.db_path) / (1024 * 1024)
+        print(f"  data.db size: {size_mb:.2f} MB")
+    print(f"\n  Accuracy:     {results.get('accuracy', 'N/A')}")
     print(f"  AUC:          {results.get('auc', 'N/A')}")
     print(f"  F1 Score:     {results.get('f1_score', 'N/A')}")
-    print(f"\n  Metrics synced to model_versions table.")
+    print(f"  Threshold:    {results.get('threshold', 'N/A')}")
+    print(f"\n  The admin server will now load from data.db at startup.")
 
 
 if __name__ == '__main__':
